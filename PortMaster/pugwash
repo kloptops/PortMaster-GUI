@@ -437,6 +437,19 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
 
         super().__init__(renderer, formatter)
 
+        ## Threading, see run_task()
+        self.dispatcher = pugtask.MainThreadDispatcher()
+        self.task = None
+
+        self.dir_scanner = pugtask.DirectoryScanner(self.dispatcher)
+        self.dir_scanner.callback = self.dir_scanner_callback
+
+        ## Port screenshots are decoded in the background.
+        self.images.enable_async(self.dispatcher)
+        self.deferred_keys = set()
+        self.pending_progress = None
+        self.pending_progress_lock = threading.Lock()
+
         cfg_data = self.get_config()
         default_sound = False
 
@@ -452,7 +465,6 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.cancellable = True
 
         self.themes = ThemeEngine(self, force_theme=force_theme)
-        self.dir_scanner = None
 
         self.theme_data = self.themes.gui_init()
         self.resources.add_path(PYLIB_PATH / 'resources')
@@ -507,15 +519,6 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.perf = pugtask.FrameStats(os.environ.get('PM_PERF', '') == '1')
         self.in_callback_loop = False
 
-        ## Threading, see run_task()
-        self.dispatcher = pugtask.MainThreadDispatcher()
-        self.task = None
-
-        self.dir_scanner = pugtask.DirectoryScanner(self.dispatcher)
-        self.dir_scanner.callback = self.dir_scanner_callback
-        self.deferred_keys = set()
-        self.pending_progress = None
-        self.pending_progress_lock = threading.Lock()
 
         self.port_size_active_port = None
         self.port_size_files = {}
@@ -928,6 +931,7 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         # Clean up. Anything SDL owns has to be destroyed before SDL_Quit, otherwise the
         # garbage collector frees it afterwards, which segfaults on some drivers (muOS/Mali).
         self.dir_scanner.shutdown()
+        self.images.disable_async()
 
         for texture in list(self.images.textures.values()):
             texture.destroy()

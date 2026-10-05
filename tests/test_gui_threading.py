@@ -3,6 +3,7 @@
 # PortMasterGUI.run_task and the thread aware callbacks, using a real (headless)
 # PortMasterGUI in this process.
 
+import os
 import threading
 import time
 
@@ -10,6 +11,8 @@ import pytest
 
 import harbourmaster
 import pugtask
+
+from conftest import PYLIB_PATH
 
 
 pytestmark = pytest.mark.sdl
@@ -254,3 +257,63 @@ def test_dir_scanner_runs_in_background(gui, tmp_path):
         assert time.monotonic() < end
 
     assert gui.dir_scanner.check_directory(tmp_path / "data", False) == 1234
+
+
+def write_png(path, width=8, height=4):
+    import png
+    rows = [[255, 0, 0] * width for _ in range(height)]
+    with open(str(path), "wb") as fh:
+        png.Writer(width, height, greyscale=False).write(fh, rows)
+
+    return path
+
+
+def test_screenshots_load_in_background(gui, tmp_path):
+    import pySDL2gui
+
+    image_file = str(write_png(tmp_path / "screenshot.png"))
+    image = gui.images.load(image_file)
+
+    assert isinstance(image, pySDL2gui.PendingImage)
+    assert gui.images.load(image_file) is image
+    ## Drawing before it has loaded is harmless.
+    image.draw_in((0, 0, 10, 10))
+
+    end = time.monotonic() + 5
+    while not image.loaded:
+        gui.do_loop(no_delay=True)
+        assert time.monotonic() < end
+
+    assert (image.srcrect.w, image.srcrect.h) == (8, 4)
+    assert gui.images.textures[image_file] is image.texture
+
+
+def test_theme_images_still_load_immediately(gui):
+    import pySDL2gui
+
+    ## Theme assets are found by name through the resource paths.
+    for name in os.listdir(str(PYLIB_PATH / "default_theme")):
+        if name.endswith(".png"):
+            break
+    else:
+        pytest.skip("default theme has no png images")
+
+    image = gui.images.load(name)
+    assert image is not None
+    assert not isinstance(image, pySDL2gui.PendingImage)
+
+
+def test_unloading_while_decoding_is_safe(gui, tmp_path, monkeypatch):
+    image_file = str(write_png(tmp_path / "evicted.png"))
+    image = gui.images.load(image_file)
+
+    ## Evict everything straight away, the finished decode must be dropped.
+    monkeypatch.setattr(gui.images, "max_images", 0)
+    gui.images._clean()
+
+    time.sleep(0.2)
+    gui.do_loop(no_delay=True)
+
+    assert image_file not in gui.images.images
+    assert image_file not in gui.images.textures
+    assert not image.loaded

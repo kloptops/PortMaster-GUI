@@ -1081,6 +1081,52 @@ class Image:
             flip=flip, center=self.center)
 
 
+class PendingImage(Image):
+    '''
+    Stands in for an image that is still being decoded on another thread.
+
+    It draws nothing and reports a 1x1 srcrect until resolve() gives it a texture,
+    so layout code that reads srcrect keeps working.
+    '''
+
+    def __init__(self, renderer=None):
+        renderer = renderer or Image.renderer
+        if renderer is None:
+            raise GUIRuntimeError('No renderer context provided')
+
+        self.renderer = renderer
+        self.texture = None
+        self.srcrect = sdl2.SDL_Rect(0, 0, 1, 1)
+        self.dstrect = sdl2.SDL_Rect(0, 0, 1, 1)
+        self.color_mod = (255, 255, 255)
+        self.x = self.y = 0
+        self.flip_x = self.flip_y = 0
+        self.angle = 0
+        self.center = None
+
+    @property
+    def loaded(self):
+        return self.texture is not None
+
+    def resolve(self, texture):
+        self.texture = texture
+        self.srcrect = sdl2.SDL_Rect(0, 0, *texture.size)
+        self.dstrect = Rect.from_sdl(self.srcrect).fitted(
+            Rect(0, 0, *self.renderer.logical_size)).sdl()
+
+    def draw_at(self, *args, **kwargs):
+        if self.texture is not None:
+            super().draw_at(*args, **kwargs)
+
+    def draw_in(self, *args, **kwargs):
+        if self.texture is not None:
+            super().draw_in(*args, **kwargs)
+
+    def draw(self):
+        if self.texture is not None:
+            super().draw()
+
+
 class ImageManager():
     '''
     The ImageManager class loads images into Textures and caches them for later use
@@ -1108,6 +1154,51 @@ class ImageManager():
         self.images = {}
         self.textures = {}
         self.cache = []
+        self.async_dispatcher = None
+        self.async_executor = None
+
+    def enable_async(self, dispatcher, max_workers=2):
+        '''
+        Decode images given by absolute path (eg: port screenshots) on worker threads.
+
+        dispatcher: something with post(fn, *args) that runs fn on the main thread,
+            textures are only ever created there.
+        '''
+        from concurrent.futures import ThreadPoolExecutor
+
+        self.async_dispatcher = dispatcher
+        self.async_executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="image-load")
+
+    def disable_async(self):
+        if self.async_executor is not None:
+            self.async_executor.shutdown(wait=False)
+            self.async_executor = None
+
+    def _decode(self, filename, res_filename, image):
+        # Worker thread: only CPU side work here.
+        try:
+            surf = sdl2.ext.image.load_img(str(res_filename))
+
+        except Exception as err:
+            logger.error(f"Unable to load image {res_filename}: {err}")
+            return
+
+        self.async_dispatcher.post(self._decoded, filename, image, surf)
+
+    def _decoded(self, filename, image, surf):
+        # Main thread: turn the decoded surface into a texture.
+        try:
+            if self.images.get(filename) is not image:
+                # Unloaded before it finished.
+                return
+
+            texture = sdl2.ext.renderer.Texture(self.renderer, surf)
+            self.textures[filename] = texture
+            image.resolve(texture)
+            self.gui.updated = True
+
+        finally:
+            sdl2.SDL_FreeSurface(surf)
 
     def load(self, filename):
         '''
@@ -1130,6 +1221,13 @@ class ImageManager():
 
             if res_filename is None:
                 return None
+
+            if self.async_executor is not None and os.path.isabs(str(filename)):
+                image = PendingImage(renderer=self.renderer)
+                self.images[filename] = image
+                self.cache.insert(0, filename)
+                self.async_executor.submit(self._decode, filename, res_filename, image)
+                return image
 
             surf = sdl2.ext.image.load_img(res_filename)
 
@@ -1297,10 +1395,12 @@ class ImageManager():
         'Remove old images when max_images is reached'
         for filename in self.cache[self.max_images:]:
             logger.debug(f"Unloaded: {filename}")
-            texture = self.textures.pop(filename)
+            # Still decoding images have no texture yet.
+            texture = self.textures.pop(filename, None)
             image = self.images.pop(filename)
             # image.destroy()
-            texture.destroy()
+            if texture is not None:
+                texture.destroy()
         self.cache = self.cache[:self.max_images]
 
 
