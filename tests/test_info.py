@@ -88,7 +88,6 @@ def test_load_from_path(tmp_path):
     assert port_info_load(port_json)['name'] == 'game.zip'
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: info.py uses Path without importing it")
 def test_load_from_path_string(tmp_path):
     port_json = tmp_path / "port.json"
     port_json.write_text(json.dumps({'version': 4, 'name': 'game.zip'}))
@@ -104,7 +103,6 @@ def test_load_from_bad_path(tmp_path):
     assert port_info_load(port_json, do_default=True)['name'] is None
 
 
-@pytest.mark.xfail(strict=True, reason="BUG: port_info_load passes the undefined `info` instead of `raw_info` to json_safe_loads")
 def test_load_from_json_string():
     assert port_info_load('{"version": 4, "name": "game.zip"}')['name'] == 'game.zip'
 

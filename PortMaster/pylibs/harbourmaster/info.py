@@ -4,6 +4,8 @@
 # System imports
 import pathlib
 
+from pathlib import Path
+
 # Included imports
 
 from loguru import logger
@@ -63,7 +65,7 @@ def port_info_load(raw_info, source_name=None, do_default=False):
             if source_name is None:
                 source_name = "<str>"
 
-            info = json_safe_loads(info)
+            info = json_safe_loads(raw_info)
             if info is None or not isinstance(info, dict):
                 if do_default:
                     info = {}
