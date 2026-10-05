@@ -118,8 +118,9 @@ def test_device_info(cli):
 
 @pytest.fixture(scope="module")
 def hm_script():
-    """The harbourmaster script imported as a module, for calling commands directly."""
-    return load_script(PM_DIR / "harbourmaster")
+    """The harbourmaster commands, for calling them directly."""
+    from harbourmaster import cli
+    return cli
 
 
 @pytest.mark.xfail(strict=True, reason="BUG: `ports.json` command expects pre-V3 port_info keys ('status', 'files') and crashes with PortMasterV3 sources")

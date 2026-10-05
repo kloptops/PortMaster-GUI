@@ -42,7 +42,7 @@ AREAS = {
     'harbourmaster.source':   (False, lambda: harbourmaster.source, ("harbourmaster.source",)),
     'harbourmaster.platform': (False, lambda: harbourmaster.platform, ("harbourmaster.platform",)),
     'HarbourMaster':          (False, lambda: harbourmaster.HarbourMaster, None),
-    'harbourmaster script':   (False, lambda: _script("harbourmaster"), ("script_harbourmaster",)),
+    'harbourmaster script':   (False, lambda: __import__("harbourmaster.cli").cli, ("harbourmaster.cli",)),
     'pugtask':                (False, lambda: __import__("pugtask"), ("pugtask",)),
     'pySDL2gui':              (True,  lambda: __import__("pySDL2gui"), ("pySDL2gui",)),
     'pugtheme':               (True,  lambda: __import__("pugtheme"), ("pugtheme",)),
@@ -71,7 +71,7 @@ def public_names(obj, own_modules):
         return names
 
     name_of = getattr(obj, "__name__", "")
-    is_script = any(module.startswith("script_") for module in own_modules)
+    is_script = any(module.startswith("script_") or module == "harbourmaster.cli" for module in own_modules)
     borrowed = set()
     for source in _star_import_sources():
         if not name_of.startswith(source.__name__) and obj is not harbourmaster:
