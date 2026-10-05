@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 #
-# Port sources. HM_SOURCE_APIS maps the "api" value in *.source.json files to a class.
+# Port sources. HM_SOURCE_APIS maps the "api" value in *.source.json files to a class,
+# PortMasterV3 is the only one left; raw_download handles installs from a plain url.
 
 from gettext import gettext as _
 from urllib.parse import urlparse, urlunparse
@@ -8,18 +9,8 @@ from loguru import logger
 from ..info import port_info_load
 from ..util import name_cleaner
 from ..util import net
-from .base import (
-    BaseSource,
-    )
-from .github import (
-    GitHubRawReleaseV1,
-    GitHubRepoV1,
-    )
-from .portmaster import (
-    PortMasterV1,
-    PortMasterV2,
-    PortMasterV3,
-    )
+from .base import BaseSource
+from .portmaster import PortMasterV3
 
 
 ################################################################################
@@ -83,11 +74,7 @@ def raw_download(save_path, file_url, callback=None, file_name=None, md5_source=
 
 
 HM_SOURCE_APIS = {
-    'GitHubRawReleaseV1': GitHubRawReleaseV1,
-    'PortMasterV1': PortMasterV1,
-    'PortMasterV2': PortMasterV2,
     'PortMasterV3': PortMasterV3,
-    'GitHubRepoV1': GitHubRepoV1,
     }
 
 

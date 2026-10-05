@@ -323,9 +323,6 @@ msgstr ""
 msgid "Fetching info"
 msgstr ""
 
-msgid "Fetching info."
-msgstr ""
-
 msgid "Fetching latest featured port images zip."
 msgstr ""
 
@@ -755,9 +752,6 @@ msgstr ""
 msgid "Strategy"
 msgstr ""
 
-msgid "Success!"
-msgstr ""
-
 #, python-brace-format
 msgid "Successfully downloaded {runtime}."
 msgstr ""
@@ -821,10 +815,6 @@ msgid "Unable to download verification file."
 msgstr ""
 
 #, python-brace-format
-msgid "Unable to download verification info for {port_name}."
-msgstr ""
-
-#, python-brace-format
 msgid "Unable to download {runtime} in {device_arch}."
 msgstr ""
 
@@ -838,10 +828,6 @@ msgstr ""
 
 #, python-brace-format
 msgid "Unable to find a source for {port_name}"
-msgstr ""
-
-#, python-brace-format
-msgid "Unable to find verification info for {port_name}."
 msgstr ""
 
 #, python-brace-format
@@ -950,10 +936,6 @@ msgstr ""
 
 #, python-brace-format
 msgid "{runtime_name} Runtime"
-msgstr ""
-
-#, python-brace-format
-msgid "{source_name}: Fetching latest ports"
 msgstr ""
 
 #, python-brace-format
