@@ -101,6 +101,7 @@ import sdl2
 import sdl2.ext
 
 import pySDL2gui
+import pugtask
 import pugtheme
 
 from loguru import logger
@@ -701,6 +702,10 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.update_counter = 0
         self.draw_counter = 0
 
+        ## PM_PERF=1 logs frame timing, see pugtask.FrameStats
+        self.perf = pugtask.FrameStats(os.environ.get('PM_PERF', '') == '1')
+        self.in_callback_loop = False
+
         self.port_size_active_port = None
         self.port_size_files = {}
         self.port_size_file_lookup = {}
@@ -756,6 +761,11 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
             pass
 
     def do_loop(self, *, no_delay=False):
+        if self.perf.enabled:
+            self.perf.frame(
+                '/'.join(layer[0] for layer in self.scenes) +
+                (' (callback)' if self.in_callback_loop else ''))
+
         events = self.events
         events.handle_events()
 
@@ -1094,7 +1104,13 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
             page_size = max(self.message_box_scene.tags['message_text'].page_size, 12) + 1
             self.message_box_scene.tags['message_text'].text = '\n'.join(self.callback_messages[-int(page_size):])
 
-            self.do_loop(no_delay=True)
+            old_in_callback_loop = self.in_callback_loop
+            self.in_callback_loop = True
+            try:
+                self.do_loop(no_delay=True)
+
+            finally:
+                self.in_callback_loop = old_in_callback_loop
 
     def progress(self, message, amount, total=None, fmt=None):
         if message is None:
