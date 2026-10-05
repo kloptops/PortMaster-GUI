@@ -44,7 +44,7 @@ AREAS = {
     'HarbourMaster':          (False, lambda: harbourmaster.HarbourMaster, None),
     'harbourmaster script':   (False, lambda: __import__("harbourmaster.cli").cli, ("harbourmaster.cli",)),
     'pugtask':                (False, lambda: __import__("pugtask"), ("pugtask",)),
-    'pySDL2gui':              (True,  lambda: __import__("pySDL2gui"), ("pySDL2gui",)),
+    'pySDL2gui':              (True,  lambda: __import__("pugwash.sdl").sdl, ("pugwash.sdl",)),
     'pugtheme':               (True,  lambda: __import__("pugtheme"), ("pugtheme",)),
     'pugscene':               (True,  lambda: __import__("pugscene"), ("pugscene",)),
     'pugwash script':         (True,  lambda: _script("pugwash"), ("script_pugwash",)),

@@ -13,7 +13,7 @@ import sdl2
 import sdl2.ext
 
 import harbourmaster
-import pySDL2gui
+from pugwash import sdl
 
 from pathlib import Path
 from loguru import logger
@@ -240,7 +240,7 @@ class BaseScene:
                 self.music_volume = region_data.get("music-volume", 128)
 
             # print(f"Loading region {region_name}: {region_data}")
-            region = pySDL2gui.Region(self.gui, region_data, region_name, number, rects)
+            region = sdl.Region(self.gui, region_data, region_name, number, rects)
 
             if "image" in region_data and "{" in region_data["image"]:
                 image_keys = []

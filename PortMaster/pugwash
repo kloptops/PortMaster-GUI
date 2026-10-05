@@ -99,7 +99,7 @@ import requests
 import sdl2
 import sdl2.ext
 
-import pySDL2gui
+from pugwash import sdl
 import pugtask
 import pugtheme
 
@@ -312,7 +312,7 @@ def format_progress(amount, total, fmt=None):
             return f"{amount} / {total}"
 
 
-class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
+class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
     TICK_INTERVAL = 1000 // 5
     TEXT_DATA_FREQ = 5000
     MIN_THEME_VERSION = 1
@@ -354,7 +354,7 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.display_width = 640
         self.display_height = 480
         self.hm = None
-        self.timers = pySDL2gui.Timer()
+        self.timers = sdl.Timer()
 
         # Get the current display mode
         display_mode = sdl2.video.SDL_DisplayMode()

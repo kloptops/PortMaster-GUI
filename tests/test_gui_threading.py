@@ -269,12 +269,12 @@ def write_png(path, width=8, height=4):
 
 
 def test_screenshots_load_in_background(gui, tmp_path):
-    import pySDL2gui
+    from pugwash import sdl
 
     image_file = str(write_png(tmp_path / "screenshot.png"))
     image = gui.images.load(image_file)
 
-    assert isinstance(image, pySDL2gui.PendingImage)
+    assert isinstance(image, sdl.PendingImage)
     assert gui.images.load(image_file) is image
     ## Drawing before it has loaded is harmless.
     image.draw_in((0, 0, 10, 10))
@@ -289,7 +289,7 @@ def test_screenshots_load_in_background(gui, tmp_path):
 
 
 def test_theme_images_still_load_immediately(gui):
-    import pySDL2gui
+    from pugwash import sdl
 
     ## Theme assets are found by name through the resource paths.
     for name in os.listdir(str(PYLIB_PATH / "default_theme")):
@@ -300,7 +300,7 @@ def test_theme_images_still_load_immediately(gui):
 
     image = gui.images.load(name)
     assert image is not None
-    assert not isinstance(image, pySDL2gui.PendingImage)
+    assert not isinstance(image, sdl.PendingImage)
 
 
 def test_unloading_while_decoding_is_safe(gui, tmp_path, monkeypatch):

@@ -12,7 +12,7 @@ import sdl2.ext
 
 import harbourmaster
 import harbourmaster.source
-import pySDL2gui
+from pugwash import sdl
 
 from pathlib import Path
 
