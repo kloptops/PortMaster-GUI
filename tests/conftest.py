@@ -7,8 +7,10 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 
 from pathlib import Path
@@ -165,6 +167,86 @@ class RecordingCallback(harbourmaster.Callback):
     def message_box(self, message, want_cancel=False, ok_text=None, cancel_text=None):
         self.message_boxes.append(message)
         return self.answer
+
+
+################################################################################
+## Driving pugwash's fifo_control mode, the same way PortMasterDialog.txt does.
+FIFO_TIMEOUT = 30
+
+
+class FifoGui:
+    def __init__(self, process, pipe_file, done_file):
+        self.process = process
+        self.pipe_file = pipe_file
+        self.done_file = done_file
+
+    def wait_done(self):
+        end = time.monotonic() + FIFO_TIMEOUT
+        while time.monotonic() < end:
+            if self.process.poll() is not None:
+                raise AssertionError(f"pugwash exited early:\n{self.process.stdout.read().decode()}")
+
+            if self.done_file.is_file() and self.pipe_file.exists():
+                result = self.done_file.read_text()
+                if result not in ("", "WAIT"):
+                    return result
+
+            time.sleep(0.05)
+
+        raise AssertionError("timed out waiting for pugwash")
+
+    def send(self, *args):
+        self.done_file.write_text("WAIT")
+
+        with open(str(self.pipe_file), "w") as fh:
+            fh.write("".join(f"{arg}\1" for arg in args) + "\n")
+
+        return self.wait_done()
+
+    def exit(self):
+        with open(str(self.pipe_file), "w") as fh:
+            fh.write("exit\n")
+
+        try:
+            result = self.process.wait(FIFO_TIMEOUT)
+            output = self.process.stdout.read().decode()
+
+        finally:
+            self.process.stdout.close()
+
+        ## main() is wrapped in logger.catch, so a crash still exits with 0.
+        assert "Traceback" not in output, output
+        return result
+
+    def kill(self):
+        if self.process.poll() is None:
+            self.process.kill()
+            self.process.wait()
+
+
+def start_fifo_gui(pm_dir, cwd, env, tmp_path, args=("--offline", "--no-check", "--no-log")):
+    """
+    Start pm_dir/pugwash in fifo_control mode and wait until it is ready.
+    """
+    pipe_file = tmp_path / "pm_pipe"
+    done_file = tmp_path / "pm_done"
+    done_file.write_text("WAIT")
+
+    process = subprocess.Popen(
+        [sys.executable, str(pm_dir / "pugwash"), *args, "fifo_control", str(pipe_file), str(done_file)],
+        cwd=str(cwd), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    gui = FifoGui(process, pipe_file, done_file)
+
+    try:
+        ## pugwash writes DONE once the pipe is ready.
+        assert gui.wait_done() == "DONE"
+
+    except BaseException:
+        gui.kill()
+        raise
+
+    return gui
 
 
 ################################################################################

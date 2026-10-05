@@ -9,64 +9,13 @@
 
 import json
 import os
-import subprocess
-import sys
-import time
 
 import pytest
 
-from conftest import PM_DIR, REPO_DIR, basic_port_files, write_port_zip
+from conftest import PM_DIR, REPO_DIR, basic_port_files, start_fifo_gui, write_port_zip
 
 
 pytestmark = pytest.mark.sdl
-
-TIMEOUT = 30
-
-
-class FifoGui:
-    def __init__(self, process, pipe_file, done_file):
-        self.process = process
-        self.pipe_file = pipe_file
-        self.done_file = done_file
-
-    def wait_done(self):
-        end = time.monotonic() + TIMEOUT
-        while time.monotonic() < end:
-            if self.process.poll() is not None:
-                raise AssertionError(f"pugwash exited early:\n{self.process.stdout.read().decode()}")
-
-            if self.done_file.is_file() and self.pipe_file.exists():
-                result = self.done_file.read_text()
-                if result not in ("", "WAIT"):
-                    return result
-
-            time.sleep(0.05)
-
-        raise AssertionError("timed out waiting for pugwash")
-
-    def send(self, *args):
-        self.done_file.write_text("WAIT")
-
-        with open(str(self.pipe_file), "w") as fh:
-            fh.write("".join(f"{arg}\1" for arg in args) + "\n")
-
-        return self.wait_done()
-
-    def exit(self):
-        with open(str(self.pipe_file), "w") as fh:
-            fh.write("exit\n")
-
-        try:
-            result = self.process.wait(TIMEOUT)
-            output = self.process.stdout.read().decode()
-
-        finally:
-            self.process.stdout.close()
-
-        ## main() is wrapped in logger.catch, so a crash still exits with 0.
-        assert "Traceback" not in output, output
-        return result
-
 
 @pytest.fixture(params=["device", "git-checkout"])
 def fifo_gui(request, hm_dirs, tmp_path):
@@ -83,26 +32,13 @@ def fifo_gui(request, hm_dirs, tmp_path):
         'HM_SCRIPTS_DIR': str(hm_dirs['scripts_dir']),
         })
 
-    pipe_file = tmp_path / "pm_pipe"
-    done_file = tmp_path / "pm_done"
-    done_file.write_text("WAIT")
-
-    process = subprocess.Popen(
-        [sys.executable, str(PM_DIR / "pugwash"), "--offline", "--no-check", "--no-log",
-            "fifo_control", str(pipe_file), str(done_file)],
-        cwd=str(cwd), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    gui = FifoGui(process, pipe_file, done_file)
+    gui = start_fifo_gui(PM_DIR, cwd, env, tmp_path)
 
     try:
-        ## pugwash writes DONE once the pipe is ready.
-        assert gui.wait_done() == "DONE"
         yield gui
 
     finally:
-        if process.poll() is None:
-            process.kill()
-            process.wait()
+        gui.kill()
 
 
 def test_messages_and_progress(fifo_gui):
