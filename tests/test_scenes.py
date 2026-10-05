@@ -14,7 +14,7 @@ pytestmark = pytest.mark.sdl
 
 @pytest.fixture(scope="module")
 def pugscene():
-    import pugscene
+    from pugwash import scenes as pugscene
     return pugscene
 
 
@@ -65,7 +65,7 @@ def option_ids(pugscene, monkeypatch, tmp_path):
         monkeypatch.setattr(pugscene.OptionScene, "load_regions", fake_load_regions)
         monkeypatch.setattr(pugscene.OptionScene, "set_buttons", lambda self, buttons: None)
         ## Pretend there is a second SD card, the muOS ports location option needs one.
-        monkeypatch.setattr(pugscene.subprocess, "getoutput", lambda args: "/dev/mmcblk1p1 /mnt/sdcard")
+        monkeypatch.setattr(pugscene.options.subprocess, "getoutput", lambda args: "/dev/mmcblk1p1 /mnt/sdcard")
 
         gui = SimpleNamespace(
             hm=fake_hm_for(cfw_name, monkeypatch, tmp_path),

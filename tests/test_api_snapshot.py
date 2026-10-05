@@ -46,7 +46,7 @@ AREAS = {
     'pugtask':                (False, lambda: __import__("pugwash.tasks").tasks, ("pugwash.tasks",)),
     'pySDL2gui':              (True,  lambda: __import__("pugwash.sdl").sdl, ("pugwash.sdl",)),
     'pugtheme':               (True,  lambda: __import__("pugwash.theme").theme, ("pugwash.theme",)),
-    'pugscene':               (True,  lambda: __import__("pugscene"), ("pugscene",)),
+    'pugscene':               (True,  lambda: __import__("pugwash.scenes").scenes, ("pugwash.scenes",)),
     'pugwash script':         (True,  lambda: _script("pugwash"), ("script_pugwash",)),
     'PortMasterGUI':          (True,  lambda: _script("pugwash").PortMasterGUI, None),
     }

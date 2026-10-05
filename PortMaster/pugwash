@@ -104,7 +104,7 @@ from pugwash import tasks
 
 from loguru import logger
 from pugwash.theme import theme_load, ThemeEngine, ThemeDownloader
-from pugscene import *
+from pugwash.scenes import *
 
 from harbourmaster import (
     HarbourMaster,
