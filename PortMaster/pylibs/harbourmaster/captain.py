@@ -17,9 +17,9 @@ from loguru import logger
 from .console import cprint
 
 # Module imports
-from .config import *
-from .util import *
-from .info import *
+from .config import HM_ACCEPTABLE_NON_BASH_TOP_LEVEL_FILES
+from .util import HarbourException, json_safe_loads, name_cleaner
+from .info import port_info_load
 
 
 class BadPort(HarbourException):
