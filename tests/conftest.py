@@ -1,0 +1,278 @@
+# SPDX-License-Identifier: MIT
+
+import builtins
+import atexit
+import importlib.machinery
+import importlib.util
+import json
+import os
+import shutil
+import sys
+import tempfile
+import zipfile
+
+from pathlib import Path
+
+import pytest
+
+
+REPO_DIR = Path(__file__).resolve().parent.parent
+PM_DIR = REPO_DIR / "PortMaster"
+PYLIB_PATH = PM_DIR / "pylibs"
+EXLIB_PATH = PM_DIR / "exlibs"
+DATA_DIR = Path(__file__).resolve().parent / "data"
+
+
+################################################################################
+## Environment, this must happen before harbourmaster is imported.
+##
+## harbourmaster.config works out its directories at import time, and when run
+## from a git checkout it would use the repo itself. Point it at a scratch dir.
+SESSION_DIR = Path(tempfile.mkdtemp(prefix="pm-tests-"))
+atexit.register(shutil.rmtree, str(SESSION_DIR), True)
+
+TEST_ENV = {
+    "HM_TOOLS_DIR":   str(SESSION_DIR / "tools"),
+    "HM_PORTS_DIR":   str(SESSION_DIR / "ports"),
+    "HM_SCRIPTS_DIR": str(SESSION_DIR / "ports"),
+
+    ## hardware.HardwareDetector uses these straight from the environment
+    ## instead of running device_info.txt.
+    "CFW_NAME":            "default",
+    "CFW_VERSION":         "1.0",
+    "CFW_GLIBC":           "2.30",
+    "DEVICE_NAME":         "Testing",
+    "DEVICE_ARCH":         "aarch64",
+    "DEVICE_CPU":          "test",
+    "DEVICE_RAM":          "1",
+    "DISPLAY_WIDTH":       "640",
+    "DISPLAY_HEIGHT":      "480",
+    "ANALOG_STICKS":       "2",
+    "DEVICE_CAPABILITIES": "aarch64 640x480 power opengl",
+
+    ## Run anything SDL headless.
+    "SDL_VIDEODRIVER": "dummy",
+    "SDL_AUDIODRIVER": "dummy",
+    ## The dummy video driver has no accelerated renderer.
+    "SDL_RENDER_DRIVER": "software",
+    }
+
+for _dir in ("tools", "ports"):
+    (SESSION_DIR / _dir).mkdir()
+
+os.environ.update(TEST_ENV)
+
+## pugwash and the harbourmaster script set these on builtins, library code relies on them.
+builtins.PYLIB_PATH = PYLIB_PATH
+builtins.PORTMASTER_DEBUG = False
+
+sys.path.insert(0, str(EXLIB_PATH))
+sys.path.insert(0, str(PYLIB_PATH))
+
+import harbourmaster  # noqa: E402
+from harbourmaster import source as hm_source  # noqa: E402
+
+
+################################################################################
+## Helpers
+def write_port_zip(zip_path, files):
+    """
+    files is a dict of {name: str/bytes/dict}, dicts are written as json.
+    Names ending in '/' are written as directory entries.
+    """
+    with zipfile.ZipFile(zip_path, 'w') as zf:
+        for name, data in files.items():
+            if isinstance(data, dict):
+                data = json.dumps(data)
+
+            if name.endswith('/'):
+                zf.writestr(zipfile.ZipInfo(name), b"")
+            else:
+                zf.writestr(name, data)
+
+    return zip_path
+
+
+def basic_port_files(name="testport", title="Test Port", script="Test Port.sh", **attr):
+    port_json = {
+        "version": 4,
+        "name": f"{name}.zip",
+        "items": [script, f"{name}/"],
+        "items_opt": None,
+        "attr": {
+            "title": title,
+            "desc": "A port for testing.",
+            "inst": "Ready to run.",
+            "genres": ["puzzle"],
+            "porter": ["tester"],
+            "rtr": True,
+            "runtime": [],
+            "reqs": [],
+            "arch": ["aarch64"],
+            **attr,
+            },
+        }
+
+    return {
+        script: "#!/bin/bash\necho hello\n",
+        f"{name}/": "",
+        f"{name}/port.json": port_json,
+        f"{name}/data.txt": "game data",
+        }
+
+
+def load_script(path):
+    """
+    Import an extension-less script like PortMaster/pugwash as a module.
+    """
+    path = Path(path)
+    loader = importlib.machinery.SourceFileLoader(f"script_{path.name}", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    ## The scripts do `__builtins__.NAME = ...`, which only works when __builtins__ is the module.
+    module.__builtins__ = builtins
+    loader.exec_module(module)
+    return module
+
+
+class RecordingCallback(harbourmaster.Callback):
+    """
+    Records everything harbourmaster tells the user, answers message boxes with `answer`.
+    """
+    def __init__(self, answer=True):
+        super().__init__()
+        self.answer = answer
+        self.messages = []
+        self.progress_calls = []
+        self.message_boxes = []
+
+    def progress(self, message, amount, total=None, fmt=None):
+        self.progress_calls.append((message, amount, total, fmt))
+
+    def message(self, message):
+        self.messages.append(message)
+
+    def message_box(self, message, want_cancel=False, ok_text=None, cancel_text=None):
+        self.message_boxes.append(message)
+        return self.answer
+
+
+################################################################################
+## Skip sdl tests when the SDL2 libraries are missing.
+def _sdl_available():
+    try:
+        import sdl2  # noqa: F401
+        import sdl2.ext  # noqa: F401
+        return True
+
+    except ImportError:
+        return False
+
+
+def pytest_collection_modifyitems(config, items):
+    if _sdl_available():
+        return
+
+    skip_sdl = pytest.mark.skip(reason="SDL2 not available, pip install pysdl2-dll")
+    for item in items:
+        if item.get_closest_marker("sdl"):
+            item.add_marker(skip_sdl)
+
+
+@pytest.fixture(scope="session")
+def pugwash():
+    """The pugwash script imported as a module (does not start the GUI)."""
+    return load_script(PM_DIR / "pugwash")
+
+
+################################################################################
+## Fixtures
+@pytest.fixture
+def hm_dirs(tmp_path):
+    dirs = {
+        'tools_dir': tmp_path / "tools",
+        'ports_dir': tmp_path / "ports",
+        'scripts_dir': tmp_path / "ports",
+        'temp_dir': tmp_path / "temp",
+        }
+
+    for value in dirs.values():
+        value.mkdir(parents=True, exist_ok=True)
+
+    return dirs
+
+
+@pytest.fixture
+def callback():
+    return RecordingCallback()
+
+
+@pytest.fixture
+def make_hm(hm_dirs, callback):
+    def _make_hm(**config):
+        config = {'offline': True, 'no-check': True, **config}
+        return harbourmaster.HarbourMaster(config, callback=callback, **hm_dirs)
+
+    return _make_hm
+
+
+@pytest.fixture
+def hm(make_hm):
+    return make_hm()
+
+
+@pytest.fixture
+def online_hm(make_hm, ports_json_data, monkeypatch, tmp_path):
+    """
+    A HarbourMaster that thinks it is online, with the PortMaster source loaded
+    from tests/data/ports.json and downloads served from local zips.
+    """
+    monkeypatch.setattr(hm_source, "fetch_json", lambda url: json.loads(json.dumps(ports_json_data)))
+
+    downloads = []
+
+    def fake_download(file_name, file_url, md5_source=None, md5_result=None, callback=None, no_check=False):
+        downloads.append(file_url)
+        name = file_name.name.rsplit('.', 1)[0]
+        port = ports_json_data['ports'][file_name.name]
+        files = basic_port_files(name=name, title=port['attr']['title'], script=port['items'][0])
+        return write_port_zip(file_name, files)
+
+    monkeypatch.setattr(hm_source, "download", fake_download)
+
+    hm = make_hm(offline=False)
+    hm.sources['pm'].update()
+    hm.downloads = downloads
+    return hm
+
+
+@pytest.fixture
+def ports_json_data():
+    with open(DATA_DIR / "ports.json") as fh:
+        return json.load(fh)
+
+
+class NetworkBlocked(Exception):
+    pass
+
+
+@pytest.fixture(autouse=True)
+def no_network(request, monkeypatch):
+    if request.node.get_closest_marker("network"):
+        return
+
+    import requests
+
+    def blocked(*args, **kwargs):
+        raise NetworkBlocked(f"network access in a test: {args!r}")
+
+    monkeypatch.setattr(requests, "get", blocked)
+    monkeypatch.setattr(requests.Session, "request", blocked)
+
+
+@pytest.fixture(autouse=True)
+def reset_hardware_cache():
+    """hardware.py memoises device info globally, start each test fresh."""
+    harbourmaster.hardware._CACHED_DICT = None
+    yield
+    harbourmaster.hardware._CACHED_DICT = None

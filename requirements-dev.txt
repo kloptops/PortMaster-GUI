@@ -1,0 +1,5 @@
+# Development only, nothing here ships with PortMaster.
+# pytest 7.4 is the last line that supports Python 3.7, which some CFWs still ship.
+pytest>=7.4,<8
+flake8
+pysdl2-dll

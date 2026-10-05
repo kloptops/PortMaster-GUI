@@ -1,0 +1,39 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Oldest Python shipped by a supported CFW. setup-python only has 3.7 on 22.04.
+          - python-version: '3.7'
+            os: ubuntu-22.04
+          - python-version: '3.12'
+            os: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+    name: Python ${{ matrix.python-version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dev requirements
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (errors only)
+        run: |
+          flake8 --select=E9,F63,F7,F82 \
+            PortMaster/pugwash PortMaster/harbourmaster \
+            PortMaster/pylibs/harbourmaster PortMaster/pylibs/pug*.py tests
+
+      - name: Run tests
+        run: pytest -v

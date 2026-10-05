@@ -76,6 +76,7 @@ from harbourmaster import (
     HarbourMaster,
     make_temp_directory,
     add_list_unique,
+    runtime_nicename,
     )
 
 

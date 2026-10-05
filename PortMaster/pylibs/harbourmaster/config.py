@@ -176,7 +176,7 @@ elif Path("/var/config/retrodeck/retrodeck.cfg").is_file() or (Path.home() / ".v
                 roms_folder=Path(line.split('=', 1)[-1])
 
     if rdhome is None:
-        logger.error(f"Unable to find the rdhome variable in {rdconfig}.")
+        logger.error(f"Unable to find the rdhome variable in {rdconfig_file}.")
         exit(255)
 
     if roms_folder is None:

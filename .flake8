@@ -18,6 +18,16 @@ ignore =
     F401,
     F403, F405,
 
+    ## `global` declarations that are only read.
+    F824,
+
+## pugwash and the harbourmaster script inject these into builtins.
+builtins =
+    PYLIB_PATH,
+    PORTMASTER_DEBUG,
+    DEFAULT_LANG,
+    CURRENT_LANG,
+
 per-file-ignores =
     PortMaster/pylibs/ports_info.py:E121,E501
     PortMaster/pylibs/harbourmaster/*:E225

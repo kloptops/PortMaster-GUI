@@ -38,20 +38,27 @@ cd /roms2/tools
 The `./PortMaster.zip` is important as it will make harbourmaster use the local file.
 
 
+## Running the tests
+
+The tests live in `tests/` and are not shipped with PortMaster. They need Python 3.7 or newer.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest                 # everything except network tests
+.venv/bin/pytest -m "not sdl"    # skip the tests that start SDL (headless)
+.venv/bin/pytest tests/test_harbour.py -k install   # a single file / test
+```
+
+The tests never touch your real PortMaster install or the network: they point `HM_TOOLS_DIR`, `HM_PORTS_DIR` and `HM_SCRIPTS_DIR` at temporary directories, and fake the device with environment variables (see `tests/conftest.py`).
+
 ## Tips and Tricks
 
-In PortMaster/pugwash there is a variable called `pretend_device`, you can use that to run the script with the resolution/hardware info of that device. Just uncomment the line for the device you wish to impersonate. This is useful for testing themes too. You will just need to search the file for the variable.
+Device information comes from the `device_info.txt` shell script, but if `DEVICE_NAME`, `DEVICE_CPU` or `CFW_NAME` are set in the environment those values are used instead. You can use that to run PortMaster as if it was a different device, which is useful for testing themes too.
 
-```python
-    ## Uncomment one of these to pretend to be a different device. more devices in pylibs/harbourmaster/hardware.py
-    pretend_device = (
-        # 'rg351p'
-        # 'rg552'
-        # 'rg503'
-        # 'rg351v'
-        # 'rg353v'
-        # 'ogs'
-        # 'ogu'
-        # 'x55'
-        )
+```bash
+DEVICE_NAME=RG353V CFW_NAME=ArkOS DEVICE_ARCH=aarch64 DISPLAY_WIDTH=640 DISPLAY_HEIGHT=480 \
+    DEVICE_CAPABILITIES="aarch64 640x480 power opengl" python3 PortMaster/pugwash
 ```
+
+To force a particular window resolution, set `pretend_resolution` in `PortMasterGUI.__init__` in `PortMaster/pugwash`.

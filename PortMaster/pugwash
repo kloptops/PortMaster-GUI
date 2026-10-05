@@ -570,32 +570,13 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
             logger.info(f"Display size: {self.display_width}x{self.display_height}")
 
         if harbourmaster.HM_TESTING:
-            capabilities = harbourmaster.device_info()
-
-            ## Uncomment one of these to pretend to be a different device. more devices in pylibs/harbourmaster/hardware.py
-            pretend_device = (
-                # 'rg351p'
-                # 'rg552'
-                # 'rg503'
-                # 'rg351v'
-                # 'rg353v'
-                # 'rgb30'
-                # 'ogs'
-                # 'ogu'
-                # 'x55'
-                # 'ace'
-                )
-
-            if not pretend_device:
-                pretend_device = 'pc'
-                ## uncomment to make it *fullscreen
-                # pretend_device = None
-
+            ## To pretend to be a different device set the device_info environment
+            ## variables, eg: DEVICE_NAME=RG353V CFW_NAME=ArkOS DEVICE_ARCH=aarch64
             pretend_resolution = None
             ## Uncomment to choose a particular resolution
             # pretend_resolution = (1024, 768)
 
-            capabilities = harbourmaster.device_info(pretend_device, override_resolution=pretend_resolution)
+            capabilities = harbourmaster.expand_info(dict(capabilities), override_resolution=pretend_resolution)
 
         if capabilities['device'] == 'default':
             device = harbourmaster.find_device_by_resolution((self.display_width, self.display_height))
@@ -604,7 +585,7 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
                 capabilities = harbourmaster.device_info(device)
 
         if capabilities['device'] == 'default':
-            capabilities = harbourmaster.device_info(override_resolution=(self.display_width, self.display_height))
+            capabilities = harbourmaster.expand_info(dict(capabilities), override_resolution=(self.display_width, self.display_height))
 
         capabilities['capabilities'].append(CURRENT_LANG)
 
