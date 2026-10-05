@@ -167,3 +167,16 @@ def test_theme_downloader_loads_cached_list_offline(downloader, theme_release, h
     assert len(theme_release.fetched) == fetched
     assert sorted(themes) == ["basic", "zelda"]
     assert (hm.cfg_dir / "themes.json").is_file()
+
+
+def test_theme_image_with_capitals(downloader, theme_release, monkeypatch):
+    ## themes.json names images like "Zelda.png", they are extracted lowercased.
+    themes_json = json.loads(json.dumps(THEMES_JSON))
+    themes_json["themes"]["zelda"]["image"] = "Zelda.png"
+    monkeypatch.setitem(THEMES_JSON, "themes", themes_json["themes"])
+
+    themes_downloader = downloader()
+    themes_downloader.update()
+
+    image = themes_downloader.get_theme_list()["zelda"]["image"]
+    assert image is not None and image.read_bytes() == b"png data"

@@ -545,7 +545,7 @@ class ThemeDownloader(harbourmaster.source.BaseSource):
                 }
 
             if theme_info['image'] is not None:
-                image_file = self._images_dir / theme_info['image']
+                image_file = self._images_dir / self.clean_name(theme_info['image'])
                 if image_file.is_file():
                     new_info['image'] = image_file
 
