@@ -34,9 +34,9 @@ from .captain import *
 ################################################################################
 ## Config loading
 class HarbourMaster():
-    __PORTS_INFO = None
-    __PORTS_DOWNLOAD = None
-    __PORTERS = None
+    _PORTS_INFO = None
+    _PORTS_DOWNLOAD = None
+    _PORTERS = None
 
     CONFIG_VERSION = 2
     DEFAULT_CONFIG = {
@@ -62,7 +62,7 @@ class HarbourMaster():
         """
         config = load_config()
         """
-        self.__PORT_INFO_CACHE = {}
+        self._PORT_INFO_CACHE = {}
 
         if tools_dir is None:
             tools_dir = HM_TOOLS_DIR
@@ -205,17 +205,17 @@ class HarbourMaster():
             json.dump(self.runtimes_info, fh, indent=4, sort_keys=True)
 
     def ports_info(self):
-        if self.__PORTS_INFO is None:
+        if self._PORTS_INFO is None:
             with open(self.cfg_dir / "ports_info.json", 'r') as fh:
-                self.__PORTS_INFO = json_safe_load(fh)
+                self._PORTS_INFO = json_safe_load(fh)
 
-            if self.__PORTS_INFO is None:
-               self.__PORTS_INFO = {"items": {}, "md5": {}, "ports": {}, "portsmd_fix": {}}
+            if self._PORTS_INFO is None:
+               self._PORTS_INFO = {"items": {}, "md5": {}, "ports": {}, "portsmd_fix": {}}
 
-        return self.__PORTS_INFO
+        return self._PORTS_INFO
 
     def port_downloads(self, port_name):
-        if self.__PORTS_DOWNLOAD is None:
+        if self._PORTS_DOWNLOAD is None:
             port_stats_data = {"ports": {}}
 
             port_stats = self.cfg_dir / "port_stats.json"
@@ -224,21 +224,21 @@ class HarbourMaster():
                     port_stats_data = json_safe_load(fh)
 
             if isinstance(port_stats_data, dict) and "ports" in port_stats_data:
-                self.__PORTS_DOWNLOAD = port_stats_data["ports"]
+                self._PORTS_DOWNLOAD = port_stats_data["ports"]
             else:
-                self.__PORTS_DOWNLOAD = {}
+                self._PORTS_DOWNLOAD = {}
 
-        return self.__PORTS_DOWNLOAD.get(port_name, 0)
+        return self._PORTS_DOWNLOAD.get(port_name, 0)
 
     def porters(self):
-        if self.__PORTERS is None:
+        if self._PORTERS is None:
             with open(self.cfg_dir / "porters.json", 'r') as fh:
-                self.__PORTERS = json_safe_load(fh)
+                self._PORTERS = json_safe_load(fh)
 
-            if self.__PORTERS is None:
-               self.__PORTERS = {}
+            if self._PORTERS is None:
+               self._PORTERS = {}
 
-        return self.__PORTERS
+        return self._PORTERS
 
     def load_info_fetch_remote(self, local_file, remote_url, remote_size, sha_source):
         """
@@ -707,7 +707,7 @@ class HarbourMaster():
         file_renames = {}
 
         ports_info = self.ports_info()
-        self.__PORT_INFO_CACHE.clear()
+        self._PORT_INFO_CACHE.clear()
 
         self.callback.message("  - {}".format(_("Loading Ports.")))
 
@@ -1565,8 +1565,8 @@ class HarbourMaster():
         result = None
 
         port_key = (name_cleaner(port_name), installed)
-        if port_key in self.__PORT_INFO_CACHE:
-            return self.__PORT_INFO_CACHE[port_key]
+        if port_key in self._PORT_INFO_CACHE:
+            return self._PORT_INFO_CACHE[port_key]
 
         if installed:
             if port_name in self.installed_ports:
@@ -1584,7 +1584,7 @@ class HarbourMaster():
                     result = port_info_load(source.port_info(port_name))
 
         if result is None:
-            self.__PORT_INFO_CACHE[port_key] = result
+            self._PORT_INFO_CACHE[port_key] = result
             return None
 
         if not installed:
@@ -1597,7 +1597,7 @@ class HarbourMaster():
         if 'source' in result:
             result['source']['downloads'] = self.port_downloads(port_name)
 
-        self.__PORT_INFO_CACHE[port_key] = result
+        self._PORT_INFO_CACHE[port_key] = result
         return result
 
     def port_download_size(self, port_name, check_runtime=True):
