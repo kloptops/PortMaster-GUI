@@ -66,10 +66,7 @@ Known bugs are pinned as `xfail(strict=True)`, so a test fails once its bug is f
   - `hm_featured.py`
   - `hm_install.py`: install / uninstall
   - `hm_runtimes.py`
-- `source/`: port repository backends registered in `HM_SOURCE_APIS`.
-  - `portmaster.py` holds `PortMasterV3`, the current backend, plus the legacy V1/V2.
-  - `github.py` holds `GitHubRawReleaseV1`/`GitHubRepoV1`.
-  - `raw_download` is in `source/__init__.py`.
+- `source/`: where ports come from. `PortMasterV3` (`source/portmaster.py`) is the only source API, registered in `HM_SOURCE_APIS`. It reads a `ports.json` release asset and keeps port screenshots up to date, incrementally from `images.NNN.zip` where possible and otherwise from `images.zip`. Each `*.source.json` in the config dir is one source; `load_sources` upgrades old official V1/V2 source files to V3. `raw_download` (`source/__init__.py`) installs from a plain URL, and is also how themes install. `BaseSource` (`source/base.py`) holds the shared caching and update-frequency logic, which `pugwash.theme.ThemeDownloader` also uses for the theme list.
 - `platform/`: per-CFW hooks, one module per CFW family. These are `PlatformBase` subclasses registered in `HM_PLATFORMS` (in `platform/__init__.py`), keyed by lowercase CFW name, and they handle gamelist.xml updates, moving scripts, ES refresh and similar. A new CFW needs:
   - a module here
   - an entry in `HM_PLATFORMS`
@@ -130,6 +127,7 @@ Use this table to port upstream patches made against the old layout:
 | `pylibs/utility.py` | `harbourmaster/console.py` |
 | `harbourmaster/harbour.py` | `harbour.py` plus the `hm_*.py` mixins |
 | `harbourmaster/source.py`, `platform.py`, `util.py` | the `source/`, `platform/`, `util/` packages |
+| `PortMasterV1`/`V2`, `GitHubRepoV1`, `GitHubRawReleaseV1` | removed. Only `PortMasterV3` remains; `ThemeDownloader` subclasses `BaseSource` directly |
 | builtins `PYLIB_PATH`, `PORTMASTER_DEBUG`, `DEFAULT_LANG`, `CURRENT_LANG` | `pugwash.PYLIB_PATH`, `harbourmaster.config.HM_DEBUG`, `pugwash.lang.*` |
 
 ## Versioning and releases
