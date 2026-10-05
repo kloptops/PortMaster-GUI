@@ -215,7 +215,7 @@ class FakeResponse:
 @pytest.fixture
 def fake_get(monkeypatch):
     def _fake_get(response):
-        monkeypatch.setattr(util.requests, "get", lambda *args, **kwargs: response)
+        monkeypatch.setattr(util.net.requests, "get", lambda *args, **kwargs: response)
         return response
 
     return _fake_get
