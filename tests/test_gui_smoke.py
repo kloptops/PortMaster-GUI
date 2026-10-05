@@ -15,7 +15,7 @@ import time
 
 import pytest
 
-from conftest import PM_DIR, REPO_DIR
+from conftest import PM_DIR, REPO_DIR, basic_port_files, write_port_zip
 
 
 pytestmark = pytest.mark.sdl
@@ -130,4 +130,25 @@ def test_register(fifo_gui):
     assert fifo_gui.send("register_clear", "ports") == "DONE"
     assert fifo_gui.send("register_dump", "ports") == "FAIL"
 
+    assert fifo_gui.exit() == 0
+
+
+def test_install_local_zip(fifo_gui, hm_dirs, tmp_path):
+    ## Runs HarbourMaster.install_port on pugwash's worker thread.
+    zip_file = write_port_zip(tmp_path / "testport.zip", basic_port_files())
+
+    assert fifo_gui.send("messages_begin") == "DONE"
+    assert fifo_gui.send("install", str(zip_file)) == "OKAY"
+    assert fifo_gui.send("messages_end") == "DONE"
+
+    assert (hm_dirs['ports_dir'] / "Test Port.sh").is_file()
+    assert (hm_dirs['ports_dir'] / "testport" / "port.json").is_file()
+
+    assert fifo_gui.exit() == 0
+
+
+def test_install_bad_zip_fails(fifo_gui, tmp_path):
+    zip_file = write_port_zip(tmp_path / "bad.zip", {"Bad.sh": "#!/bin/bash\n"})
+
+    assert fifo_gui.send("install", str(zip_file)) == "FAIL"
     assert fifo_gui.exit() == 0

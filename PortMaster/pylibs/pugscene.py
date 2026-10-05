@@ -961,7 +961,7 @@ class OptionScene(BaseScene):
 
                 logger.warning("-- RESTORE PORTMASTER --")
                 with self.gui.enable_cancellable(False), self.gui.enable_messages():
-                    if self.gui.hm.install_port("restore.portmaster.zip") != 0:
+                    if self.gui.run_task(self.gui.hm.install_port, "restore.portmaster.zip") != 0:
                         return True
 
                 self.gui.message_box(
@@ -1391,7 +1391,7 @@ class ThemesScene(BaseScene):
             import pugtheme
             with self.gui.enable_cancellable(False):
                 with self.gui.enable_messages():
-                    self.gui.theme_downloader = pugtheme.ThemeDownloader(self.gui, self.gui.themes)
+                    self.gui.theme_downloader = self.gui.run_task(pugtheme.ThemeDownloader, self.gui, self.gui.themes)
 
         self.themes = self.gui.themes.get_themes_list(
             self.gui.theme_downloader.get_theme_list())

@@ -31,6 +31,7 @@ import subprocess
 import sys
 import tarfile
 import textwrap
+import threading
 import time
 import zipfile
 
@@ -313,212 +314,13 @@ def format_progress(amount, total, fmt=None):
             return f"{amount} / {total}"
 
 
-def fifo_line_reader(io):
-    buffer = ""
-
-    while True:
-        try:
-            data = os.read(io, 4096)
-
-            buffer += data.decode("utf-8")
-
-        except OSError as err:
-            if not (err.errno == errno.EAGAIN or err.errno == errno.EWOULDBLOCK):
-                raise  # something else has happened -- better reraise
-
-        while "\n" in buffer:
-            result, buffer = buffer.split("\n", 1)
-
-            yield result
-
-        yield ""
-
-
-class DirectoryScanner:
-    def __init__(self):
-        self.scans = {}
-        self.results = {}
-        self.callback = None
-
-    def _check(self, scan_dir, scan_info):
-        try:
-            result = next(scan_info[1])
-            scan_info[0] = result
-            return result, False
-
-        except StopIteration:
-            del self.scans[scan_dir]
-            self.results[scan_dir] = scan_info[0]
-            return scan_info[0], True
-
-    def _get_directory_size(self, path):
-        stack = [path]
-
-        while len(stack) > 0:
-            total_size = 0
-            path = stack.pop(0)
-
-            if path.is_file():
-                total_size += entry.stat().st_size
-
-            elif path.is_dir():
-                for entry in os.scandir(path):
-                    if entry.name in ('.', '..'):
-                        continue
-
-                    elif entry.is_file():
-                        total_size += entry.stat().st_size
-
-                    elif entry.is_dir():
-                        stack.append(Path(entry.path))
-
-                yield total_size
-                total_size = 0
-
-            yield total_size
-
-    def _calculate_total_size(self, path):
-        total_size = 0
-
-        for size in self._get_directory_size(path):
-            total_size += size
-            yield total_size
-
-        yield total_size
-
-    def iterate(self, max_scans=60):
-        scanned_items = 0
-        scanned = {}
-
-        while scanned_items < max_scans and len(self.scans) > 0:
-            for scan_dir in list(self.scans.keys()):
-                scanned[scan_dir] = self._check(scan_dir, self.scans[scan_dir])
-
-                scanned_items += 1
-                if scanned_items >= max_scans:
-                    break
-
-        if self.callback:
-            for scanned_dir in scanned:
-                self.callback(scanned_dir, *scanned[scanned_dir])
-
-    def check_directory(self, directory, nice_size=True):
-        # Check if results are available for a directory scan, otherwise start it scanning
-        if directory in self.results:
-            if nice_size:
-                return harbourmaster.nice_size(self.results[directory])
-
-            else:
-                return self.results[directory]
-
-        elif directory in self.scans:
-            if nice_size:
-                return f"~ {harbourmaster.nice_size(self.scans[directory][0])}"
-
-            else:
-                return None
-
-        else:
-            self.scans[directory] = [0, self._calculate_total_size(directory)]
-            if nice_size:
-                return f"~ {harbourmaster.nice_size(self.scans[directory][0])}"
-
-            return None
-
-    def clear_directory(self, directory):
-        # Clear data about a directory, cancel any scans in progress
-        if directory in self.scans:
-            del self.scans[directory]
-
-        if directory in self.results:
-            del self.results[directory]
-
-    def clear_all(self):
-        # Clear all scans in progress
-        self.scans.clear()
-
-
-class FileVerifier:
-    BLOCK_SIZE = (1024 * 1024 * 1)
-
-    def __init__(self):
-        self.scans = {}
-        self.results = {}
-        self.callback = None
-
-    def _verify(self, file_name, verify_info):
-        try:
-            result = next(verify_info[1])
-            verify_info[0] = result
-            return result, False
-
-        except StopIteration:
-            del self.scans[file_name]
-            self.results[file_name] = verify_info[0]
-            return verify_info[0], True
-
-    def _get_md5sum(self, file_name):
-        md5_obj = hashlib.md5()
-        with open(file_name, 'rb') as fh:
-            while True:
-                data = fh.read(BLOCK_SIZE)
-                if data == b"":
-                    break
-
-                md5_obj.update(data)
-                yield None
-
-        yield md5_obj.hexdigest()
-
-    def iterate(self, max_scans=30):
-        scanned_items = 0
-        scanned = {}
-
-        while scanned_items < max_scans and len(self.scans) > 0:
-            for file_name in list(self.scans.keys()):
-                scanned[file_name] = self._check(file_name, self.scans[file_name])
-
-                scanned_items += 1
-                if scanned_items >= max_scans:
-                    break
-
-        if self.callback:
-            for file_name in scanned:
-                self.callback(file_name, *scanned[file_name])
-
-    def verify_file(self, file_name):
-        # Check if results are available for a directory scan, otherwise start it scanning
-        if file_name in self.results:
-            return self.results[file_name]
-
-        elif file_name not in self.scans:
-            self.scans[file_name] = [0, self._verify(directory)]
-
-        return "Verifying"
-
-    def clear_file(self, file_name):
-        # Clear data about a directory, cancel any scans in progress
-        if file_name in self.scans:
-            self.scans[file_name][1].close()
-            del self.scans[file_name]
-
-        if file_name in self.results:
-            del self.results[file_name]
-
-    def clear_all(self):
-        # Clear all scans in progress
-        for file_name in self.scans:
-            self.clear_file(file_name)
-
-        self.results.clear()
-        self.scans.clear()
-
-
 class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
     TICK_INTERVAL = 1000 // 5
     TEXT_DATA_FREQ = 5000
     MIN_THEME_VERSION = 1
     IS_GUI = True
+    TASK_INPUT_LAYERS = ('messages', 'message_box')
+    FRAME_TIME = 1000 // 30
 
     def __init__(self, *, first_scene=None, force_theme=None):
         # Initialize SDL
@@ -650,8 +452,7 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.cancellable = True
 
         self.themes = ThemeEngine(self, force_theme=force_theme)
-        self.dir_scanner = DirectoryScanner()
-        self.dir_scanner.callback = self.dir_scanner_callback
+        self.dir_scanner = None
 
         self.theme_data = self.themes.gui_init()
         self.resources.add_path(PYLIB_PATH / 'resources')
@@ -705,6 +506,16 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         ## PM_PERF=1 logs frame timing, see pugtask.FrameStats
         self.perf = pugtask.FrameStats(os.environ.get('PM_PERF', '') == '1')
         self.in_callback_loop = False
+
+        ## Threading, see run_task()
+        self.dispatcher = pugtask.MainThreadDispatcher()
+        self.task = None
+
+        self.dir_scanner = pugtask.DirectoryScanner(self.dispatcher)
+        self.dir_scanner.callback = self.dir_scanner_callback
+        self.deferred_keys = set()
+        self.pending_progress = None
+        self.pending_progress_lock = threading.Lock()
 
         self.port_size_active_port = None
         self.port_size_files = {}
@@ -761,6 +572,8 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
             pass
 
     def do_loop(self, *, no_delay=False):
+        frame_start = sdl2.SDL_GetTicks()
+
         if self.perf.enabled:
             self.perf.frame(
                 '/'.join(layer[0] for layer in self.scenes) +
@@ -781,9 +594,11 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.do_update()
         self.do_draw()
 
-        ## TODO: fix it, 30 is approximately 30fps (1000 // 30)
+        ## Sleep for whatever is left of this frame.
         if not no_delay:
-            sdl2.SDL_Delay(30)
+            frame_left = self.FRAME_TIME - (sdl2.SDL_GetTicks() - frame_start)
+            if frame_left > 0:
+                sdl2.SDL_Delay(frame_left)
 
         if self.timers.elapsed('updates_per_second', 1000, run_first=True):
             if PORTMASTER_DEBUG:
@@ -797,6 +612,9 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
             self.updated = True
 
     def do_update(self):
+        # Run anything worker threads have handed to the main thread.
+        self.dispatcher.drain()
+
         # Update tags
         if self.timers.elapsed('text_data_update', self.TEXT_DATA_FREQ, run_first=True):
             self.set_data("system.time_24hr", datetime.datetime.now().strftime("%H:%M"))
@@ -833,21 +651,34 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.animations.update_animations()
 
         # Events get handled in reversed order.
-        for scene in reversed(self.scenes[-1][1]):
-            if scene.do_update(self.events):
-                break
-
-        # Update scanning
-        if self.timers.elapsed('dir_scan_interval', 500, run_first=True):
-            self.dir_scanner.iterate(30)
+        # While a task is running only the messages / message box layers get input,
+        # anything else could touch self.hm while the worker is using it.
+        if self.task is None or self.scenes[-1][0] in self.TASK_INPUT_LAYERS:
+            for scene in reversed(self.scenes[-1][1]):
+                if scene.do_update(self.events):
+                    break
 
         ## Check for any keys changed in our template system.
-        if len(self.changed_keys):
-            for layer in self.scenes:
-                for scene in layer[1]:
+        if self.task is not None:
+            ## Only the top layer is updated during a task, the rest catch up afterwards.
+            if len(self.changed_keys):
+                for scene in self.scenes[-1][1]:
                     scene.update_data(self.changed_keys)
 
-            self.changed_keys.clear()
+                self.deferred_keys.update(self.changed_keys)
+                self.changed_keys.clear()
+
+        else:
+            if len(self.deferred_keys):
+                self.changed_keys.update(self.deferred_keys)
+                self.deferred_keys.clear()
+
+            if len(self.changed_keys):
+                for layer in self.scenes:
+                    for scene in layer[1]:
+                        scene.update_data(self.changed_keys)
+
+                self.changed_keys.clear()
 
         self.update_counter += 1
 
@@ -1094,8 +925,67 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         return self.formatter.format_string(input_string, used_keys)
 
     def quit(self):
-        # Clean up
+        # Clean up. Anything SDL owns has to be destroyed before SDL_Quit, otherwise the
+        # garbage collector frees it afterwards, which segfaults on some drivers (muOS/Mali).
+        self.dir_scanner.shutdown()
+
+        for texture in list(self.images.textures.values()):
+            texture.destroy()
+
+        ## Any texture still referenced becomes a no-op once its renderer is gone.
+        self.renderer.destroy()
+        self.window.close()
+
         sdl2.ext.quit()
+
+    ## Threading
+    def run_task(self, fn, *args, **kwargs):
+        """
+        Run fn on a worker thread while the GUI keeps running, returns its result or
+        re-raises its exception here.
+
+        Callbacks from the worker (message, progress, message_box, ...) are handed to the
+        main thread, see the callback methods below. Only one task runs at a time, as
+        HarbourMaster is not thread safe.
+        """
+        if not pugtask.on_main_thread() or self.task is not None:
+            ## Already inside a task (eg: do_runtime_check during an install), just run it.
+            if self.task is not None and pugtask.on_main_thread():
+                raise RuntimeError("run_task called on the main thread while a task is running")
+
+            return fn(*args, **kwargs)
+
+        task = pugtask.Task(fn, *args, **kwargs)
+        self.task = task
+        task.start()
+
+        try:
+            while not task.done.is_set():
+                self.do_loop()
+
+            self.dispatcher.drain()
+
+        finally:
+            self.task = None
+            self.updated = True
+
+        return task.get()
+
+    def check_task_cancel(self):
+        """
+        Called from the worker, raises CancelEvent if the user cancelled.
+        """
+        task = self.task
+        if task is not None and task.cancel_requested.is_set() and self.cancellable is True:
+            task.cancel_requested.clear()
+            raise harbourmaster.CancelEvent()
+
+    def _apply_pending_progress(self):
+        with self.pending_progress_lock:
+            pending, self.pending_progress = self.pending_progress, None
+
+        if pending is not None:
+            self.progress(*pending)
 
     ## Messagebox / Callback stuff
     def callback_update(self):
@@ -1103,6 +993,10 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         if self.message_box_scene:
             page_size = max(self.message_box_scene.tags['message_text'].page_size, 12) + 1
             self.message_box_scene.tags['message_text'].text = '\n'.join(self.callback_messages[-int(page_size):])
+
+            if self.task is not None:
+                ## run_task is already running the main loop.
+                return
 
             old_in_callback_loop = self.in_callback_loop
             self.in_callback_loop = True
@@ -1113,6 +1007,19 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
                 self.in_callback_loop = old_in_callback_loop
 
     def progress(self, message, amount, total=None, fmt=None):
+        if not pugtask.on_main_thread():
+            self.check_task_cancel()
+
+            ## Only the latest progress matters, so only post it once per frame.
+            with self.pending_progress_lock:
+                need_post = self.pending_progress is None
+                self.pending_progress = (message, amount, total, fmt)
+
+            if need_post:
+                self.dispatcher.post(self._apply_pending_progress)
+
+            return
+
         if message is None:
             self.callback_progress = None
             self.callback_amount = 0
@@ -1172,6 +1079,11 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         self.callback_update()
 
     def message(self, message):
+        if not pugtask.on_main_thread():
+            self.check_task_cancel()
+            self.dispatcher.post(self.message, message)
+            return
+
         self.callback_messages.append(message)
         self.callback_update()
 
@@ -1179,6 +1091,10 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         """
         Display a message box
         """
+        if not pugtask.on_main_thread():
+            ## Blocks the worker until the user answers.
+            return self.dispatcher.call(
+                self.message_box, message, want_cancel=want_cancel, ok_text=ok_text, cancel_text=cancel_text)
 
         if ok_text is None:
             ok_text = _("Okay")
@@ -1195,7 +1111,9 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         ## This fixes a bug :D
         self.events.handle_events()
 
-        with self.enable_cancellable(True):
+        ## During a task the worker owns `cancellable`, changing it here could let the
+        ## user cancel a part that must not be cancelled.
+        with (self.enable_cancellable(True) if self.task is None else contextlib.nullcontext()):
             self.push_scene('message_box', MessageBoxScene(
                 self, message, want_cancel=want_cancel, ok_text=ok_text, cancel_text=cancel_text))
 
@@ -1223,6 +1141,9 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         Deprecated, use `with gui.enable_messages():` instead
         """
 
+        if not pugtask.on_main_thread():
+            return self.dispatcher.call(self.messages_begin, internal=internal)
+
         if not internal:
             logger.error("Using old messages begin/end api is deprecated.")
 
@@ -1242,6 +1163,10 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
 
         Deprecated, use `with gui.enable_messages():` instead
         """
+        if not pugtask.on_main_thread():
+            ## Let any queued messages / progress show first.
+            return self.dispatcher.call(self.messages_end, internal=internal)
+
         if not internal:
             logger.error("Using old messages begin/end api is deprecated.")
 
@@ -1389,6 +1314,13 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         """
         Cancel if it is possible
         """
+        if self.task is not None:
+            ## The worker raises CancelEvent at its next progress/message.
+            if self.cancellable is True:
+                self.task.cancel()
+
+            return
+
         if self.cancellable is True:
             raise harbourmaster.CancelEvent()
 
@@ -1417,6 +1349,9 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
 
     ## Gamelist xml updater
     def update_gamelist_xml(self):
+        self.run_task(self._update_gamelist_xml)
+
+    def _update_gamelist_xml(self):
         with self.enable_cancellable(False), \
                 self.enable_messages(), \
                 self.hm.platform.gamelist_backup() as gamelist_xml:
@@ -1476,41 +1411,46 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
 
         with self.enable_messages():
             self.message(_("Installing {port_name}").format(port_name=port_name))
-            self.do_loop(no_delay=True)
 
             with self.enable_cancellable(allow_cancel):
-                self.hm.install_port(port_url)
-                self.hm.load_ports()
+                self.run_task(self._install_task, port_url)
+
+    def _install_task(self, port_url):
+        self.hm.install_port(port_url)
+        self.hm.load_ports()
 
     def do_uninstall(self, port_name):
         with self.enable_messages():
             self.message(_("Uninstalling {port_name}").format(port_name=port_name))
-            self.do_loop(no_delay=True)
 
             with self.enable_cancellable(False):
-                self.hm.uninstall_port(port_name)
+                self.run_task(self._uninstall_task, port_name)
                 self.delete_port_size(port_name)
-                self.hm.load_ports()
+
+    def _uninstall_task(self, port_name):
+        self.hm.uninstall_port(port_name)
+        self.hm.load_ports()
 
     def do_update_ports(self):
         with self.enable_messages():
             with self.enable_cancellable(False):
                 self.message(_('Updating all port sources:'))
-                self.do_loop(no_delay=True)
-                self.hm.load_info(force_load=True)
-                for source in self.hm.sources:
-                    self.hm.sources[source].update()
+                self.run_task(self._update_ports_task)
 
-                self.hm.load_ports()
+    def _update_ports_task(self):
+        self.hm.load_info(force_load=True)
+        for source in self.hm.sources:
+            self.hm.sources[source].update()
+
+        self.hm.load_ports()
 
     def do_runtime_check(self, runtime_name, in_install=False):
         with self.enable_messages():
             self.message(_("Checking {runtime_name}").format(
                 runtime_name=harbourmaster.runtime_nicename(runtime_name)))
-            self.do_loop(no_delay=True)
 
             with self.enable_cancellable(True):
-                self.hm.check_runtime(runtime_name, in_install=in_install)
+                self.run_task(self.hm.check_runtime, runtime_name, in_install=in_install)
 
     ## Fifo Control
     def fifo_reg_set_info(self, fifo_config, args):
@@ -1754,7 +1694,7 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
 
         with self.enable_messages():
             with self.enable_cancellable(False):
-                result = self.hm.check_runtime(args[0])
+                result = self.run_task(self.hm.check_runtime, args[0])
                 fifo_config['done-file'].write_text(result and "FAIL" or "OKAY")
 
     def fifo_install(self, fifo_config, args):
@@ -1770,7 +1710,7 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
         with self.enable_messages():
             with self.enable_cancellable(False):
                 with self.disable_messagebox():
-                    result = self.hm.install_port(args[0])
+                    result = self.run_task(self.hm.install_port, args[0])
                     logger.debug(f"result: {result}")
                     fifo_config['done-file'].write_text(result and "FAIL" or "OKAY")
 
@@ -1825,20 +1765,18 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
             }
 
         self.cancellable = False
-        pipe = None
+        reader = None
 
         try:
             os.mkfifo(fifo_file, mode=0o777)
 
-            pipe = os.open(fifo_file, os.O_RDONLY | os.O_NONBLOCK)
-
-            reader = fifo_line_reader(pipe)
+            reader = pugtask.FifoReader(fifo_file)
             done_file.write_text("DONE")
 
             while True:
-                args = next(reader)
+                args = reader.get()
 
-                if args == "":
+                if args is None:
                     self.do_loop()
                     continue
 
@@ -1860,8 +1798,8 @@ class PortMasterGUI(pySDL2gui.GUI, harbourmaster.Callback):
                 self.do_loop(no_delay=True)
 
         finally:
-            if pipe is not None:
-                os.close(pipe)
+            if reader is not None:
+                reader.close()
 
             if fifo_file.exists():
                 fifo_file.unlink()
@@ -1894,7 +1832,7 @@ def portmaster_check_update(pm, config, temp_dir):
     if update_checked is None or harbourmaster.datetime_compare(update_checked) > PORTMASTER_UPDATE_FREQUENCY:
         update_checked_was_none = update_checked is None
         try:
-            release_info = harbourmaster.fetch_json(PORTMASTER_RELEASE_URL + 'version.json')
+            release_info = pm.run_task(harbourmaster.fetch_json, PORTMASTER_RELEASE_URL + 'version.json')
 
         except Exception as err:
             logger.error(f'Unable to download {PORTMASTER_RELEASE_URL}version.json: {err}')
@@ -1953,7 +1891,7 @@ def portmaster_check_update(pm, config, temp_dir):
             old_check = config['no-check']
             config['no-check'] = True
 
-            pm.hm = HarbourMaster(config, temp_dir=temp_dir, callback=pm)
+            pm.hm = pm.run_task(HarbourMaster, config, temp_dir=temp_dir, callback=pm)
             if pm.hm.platform.WANT_XBOX_FIX:
                 pm.events.fix_xbox_mode()
 
@@ -2059,7 +1997,7 @@ def main(argv):
 
             if not config['no-harbour']:
                 with pm.enable_cancellable(False):
-                    pm.hm = HarbourMaster(config, temp_dir=temp_dir, callback=pm)
+                    pm.hm = pm.run_task(HarbourMaster, config, temp_dir=temp_dir, callback=pm)
 
             if pm.hm is not None:
                 if pm.hm.platform.WANT_XBOX_FIX:
@@ -2080,7 +2018,7 @@ def main(argv):
                 return 0
 
         with pm.enable_cancellable(False):
-            pm.hm = HarbourMaster(config, temp_dir=temp_dir, callback=pm)
+            pm.hm = pm.run_task(HarbourMaster, config, temp_dir=temp_dir, callback=pm)
 
         reboot_file = (harbourmaster.HM_TOOLS_DIR / "PortMaster" / ".pugwash-reboot")
         if not reboot_file.is_file():
