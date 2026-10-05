@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-import pugtask
+from pugwash import tasks as pugtask
 
 
 def run_in_thread(fn):

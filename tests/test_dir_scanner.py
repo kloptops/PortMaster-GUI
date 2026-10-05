@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-import pugtask
+from pugwash import tasks as pugtask
 
 
 @pytest.fixture

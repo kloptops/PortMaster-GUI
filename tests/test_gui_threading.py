@@ -10,7 +10,7 @@ import time
 import pytest
 
 import harbourmaster
-import pugtask
+from pugwash import tasks as pugtask
 
 from conftest import PYLIB_PATH
 

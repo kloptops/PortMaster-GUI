@@ -10,7 +10,7 @@ pytestmark = pytest.mark.sdl
 
 @pytest.fixture(scope="module")
 def pugtheme():
-    import pugtheme
+    from pugwash import theme as pugtheme
     return pugtheme
 
 

@@ -14,14 +14,13 @@ import harbourmaster
 import harbourmaster.source
 from pugwash import sdl
 
-from pathlib import Path
-
 from loguru import logger
+
+from pugwash import PYLIB_PATH
 
 
 _ = gettext.gettext
 
-PYLIB_PATH = Path(__file__).resolve().parent
 
 
 ## TODO: make this all a class, and maybe make it less janky, maybe...

@@ -100,11 +100,10 @@ import sdl2
 import sdl2.ext
 
 from pugwash import sdl
-import pugtask
-import pugtheme
+from pugwash import tasks
 
 from loguru import logger
-from pugtheme import theme_load, ThemeEngine, ThemeDownloader
+from pugwash.theme import theme_load, ThemeEngine, ThemeDownloader
 from pugscene import *
 
 from harbourmaster import (
@@ -436,10 +435,10 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
         super().__init__(renderer, formatter)
 
         ## Threading, see run_task()
-        self.dispatcher = pugtask.MainThreadDispatcher()
+        self.dispatcher = tasks.MainThreadDispatcher()
         self.task = None
 
-        self.dir_scanner = pugtask.DirectoryScanner(self.dispatcher)
+        self.dir_scanner = tasks.DirectoryScanner(self.dispatcher)
         self.dir_scanner.callback = self.dir_scanner_callback
 
         ## Port screenshots are decoded in the background.
@@ -513,8 +512,8 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
         self.update_counter = 0
         self.draw_counter = 0
 
-        ## PM_PERF=1 logs frame timing, see pugtask.FrameStats
-        self.perf = pugtask.FrameStats(os.environ.get('PM_PERF', '') == '1')
+        ## PM_PERF=1 logs frame timing, see tasks.FrameStats
+        self.perf = tasks.FrameStats(os.environ.get('PM_PERF', '') == '1')
         self.in_callback_loop = False
 
 
@@ -950,14 +949,14 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
         main thread, see the callback methods below. Only one task runs at a time, as
         HarbourMaster is not thread safe.
         """
-        if not pugtask.on_main_thread() or self.task is not None:
+        if not tasks.on_main_thread() or self.task is not None:
             ## Already inside a task (eg: do_runtime_check during an install), just run it.
-            if self.task is not None and pugtask.on_main_thread():
+            if self.task is not None and tasks.on_main_thread():
                 raise RuntimeError("run_task called on the main thread while a task is running")
 
             return fn(*args, **kwargs)
 
-        task = pugtask.Task(fn, *args, **kwargs)
+        task = tasks.Task(fn, *args, **kwargs)
         self.task = task
         task.start()
 
@@ -1009,7 +1008,7 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
                 self.in_callback_loop = old_in_callback_loop
 
     def progress(self, message, amount, total=None, fmt=None):
-        if not pugtask.on_main_thread():
+        if not tasks.on_main_thread():
             self.check_task_cancel()
 
             ## Only the latest progress matters, so only post it once per frame.
@@ -1081,7 +1080,7 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
         self.callback_update()
 
     def message(self, message):
-        if not pugtask.on_main_thread():
+        if not tasks.on_main_thread():
             self.check_task_cancel()
             self.dispatcher.post(self.message, message)
             return
@@ -1093,7 +1092,7 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
         """
         Display a message box
         """
-        if not pugtask.on_main_thread():
+        if not tasks.on_main_thread():
             ## Blocks the worker until the user answers.
             return self.dispatcher.call(
                 self.message_box, message, want_cancel=want_cancel, ok_text=ok_text, cancel_text=cancel_text)
@@ -1143,7 +1142,7 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
         Deprecated, use `with gui.enable_messages():` instead
         """
 
-        if not pugtask.on_main_thread():
+        if not tasks.on_main_thread():
             return self.dispatcher.call(self.messages_begin, internal=internal)
 
         if not internal:
@@ -1165,7 +1164,7 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
 
         Deprecated, use `with gui.enable_messages():` instead
         """
-        if not pugtask.on_main_thread():
+        if not tasks.on_main_thread():
             ## Let any queued messages / progress show first.
             return self.dispatcher.call(self.messages_end, internal=internal)
 
@@ -1772,7 +1771,7 @@ class PortMasterGUI(sdl.GUI, harbourmaster.Callback):
         try:
             os.mkfifo(fifo_file, mode=0o777)
 
-            reader = pugtask.FifoReader(fifo_file)
+            reader = tasks.FifoReader(fifo_file)
             done_file.write_text("DONE")
 
             while True:

@@ -1388,10 +1388,10 @@ class ThemesScene(BaseScene):
         self.load_regions("themes_list", ['themes_list', ])
 
         if self.gui.theme_downloader is None:
-            import pugtheme
+            from pugwash import theme
             with self.gui.enable_cancellable(False):
                 with self.gui.enable_messages():
-                    self.gui.theme_downloader = self.gui.run_task(pugtheme.ThemeDownloader, self.gui, self.gui.themes)
+                    self.gui.theme_downloader = self.gui.run_task(theme.ThemeDownloader, self.gui, self.gui.themes)
 
         self.themes = self.gui.themes.get_themes_list(
             self.gui.theme_downloader.get_theme_list())
