@@ -57,6 +57,16 @@ TEST_ENV = {
     "SDL_RENDER_DRIVER": "software",
     }
 
+## Some SDL builds (eg muOS) have no dummy driver, set PM_TEST_VIDEODRIVER to use
+## a real one (an empty value lets SDL pick), eg: PM_TEST_VIDEODRIVER= pytest -m sdl
+if "PM_TEST_VIDEODRIVER" in os.environ:
+    del TEST_ENV["SDL_RENDER_DRIVER"]
+    if os.environ["PM_TEST_VIDEODRIVER"]:
+        TEST_ENV["SDL_VIDEODRIVER"] = os.environ["PM_TEST_VIDEODRIVER"]
+    else:
+        del TEST_ENV["SDL_VIDEODRIVER"]
+        os.environ.pop("SDL_VIDEODRIVER", None)
+
 for _dir in ("tools", "ports"):
     (SESSION_DIR / _dir).mkdir()
 
