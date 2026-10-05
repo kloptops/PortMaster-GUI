@@ -7,6 +7,7 @@ import pytest
 
 import harbourmaster
 from harbourmaster import source as hm_source
+from harbourmaster.util import net as hm_net
 from harbourmaster import util
 
 from conftest import basic_port_files, write_port_zip
@@ -36,7 +37,7 @@ def test_offline_startup_does_not_fetch(make_hm, monkeypatch):
     def fail(*args, **kwargs):
         raise AssertionError("fetched while offline")
 
-    monkeypatch.setattr(hm_source, "fetch_json", fail)
+    monkeypatch.setattr(hm_net, "fetch_json", fail)
     make_hm()
 
 

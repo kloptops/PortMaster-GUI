@@ -6,6 +6,7 @@ import pytest
 
 import harbourmaster
 from harbourmaster import source as hm_source
+from harbourmaster.util import net as hm_net
 
 
 @pytest.fixture
@@ -17,7 +18,7 @@ def pm_source(hm, ports_json_data, monkeypatch):
         fetched.append(url)
         return json.loads(json.dumps(ports_json_data))
 
-    monkeypatch.setattr(hm_source, "fetch_json", fake_fetch_json)
+    monkeypatch.setattr(hm_net, "fetch_json", fake_fetch_json)
 
     source = hm.sources['pm']
     source.update()
@@ -74,7 +75,7 @@ def test_download_unknown_port(pm_source, callback):
 
 
 def test_update_failure_keeps_going(hm, monkeypatch):
-    monkeypatch.setattr(hm_source, "fetch_json", lambda url: None)
+    monkeypatch.setattr(hm_net, "fetch_json", lambda url: None)
 
     source = hm.sources['pm']
     source.update()

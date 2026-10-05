@@ -79,6 +79,7 @@ sys.path.insert(0, str(PYLIB_PATH))
 
 import harbourmaster  # noqa: E402
 from harbourmaster import source as hm_source  # noqa: E402
+from harbourmaster.util import net as hm_net  # noqa: E402
 
 
 ################################################################################
@@ -315,7 +316,7 @@ def online_hm(make_hm, ports_json_data, monkeypatch, tmp_path):
     A HarbourMaster that thinks it is online, with the PortMaster source loaded
     from tests/data/ports.json and downloads served from local zips.
     """
-    monkeypatch.setattr(hm_source, "fetch_json", lambda url: json.loads(json.dumps(ports_json_data)))
+    monkeypatch.setattr(hm_net, "fetch_json", lambda url: json.loads(json.dumps(ports_json_data)))
 
     downloads = []
 
@@ -326,7 +327,7 @@ def online_hm(make_hm, ports_json_data, monkeypatch, tmp_path):
         files = basic_port_files(name=name, title=port['attr']['title'], script=port['items'][0])
         return write_port_zip(file_name, files)
 
-    monkeypatch.setattr(hm_source, "download", fake_download)
+    monkeypatch.setattr(hm_net, "download", fake_download)
 
     hm = make_hm(offline=False)
     hm.sources['pm'].update()
