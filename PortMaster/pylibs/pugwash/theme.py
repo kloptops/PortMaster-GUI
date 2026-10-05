@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import copy
+import datetime
 import functools
 import gettext
 import json
@@ -12,6 +13,7 @@ import sdl2.ext
 
 import harbourmaster
 import harbourmaster.source
+from harbourmaster.util import net
 from pugwash import sdl
 
 from loguru import logger
@@ -390,7 +392,16 @@ class Theme:
         return theme_load(gui, self.theme_file, color_scheme)
 
 
-class ThemeDownloader(harbourmaster.source.GitHubRawReleaseV1):
+class ThemeDownloader(harbourmaster.source.BaseSource):
+    """
+    The list of downloadable themes, from the PortMaster-Themes GitHub release.
+
+    Themes themselves are installed by HarbourMaster.install_port() from their url,
+    this only keeps the list (and preview images) up to date in config/themes.json.
+    """
+    ## Matches the cache version written before this stopped being a GitHubRawReleaseV1.
+    VERSION = 4
+
     DEFAULT_DATA = {
         "prefix": "theme",
         "api": "GitHubRawReleaseV1",
@@ -402,7 +413,6 @@ class ThemeDownloader(harbourmaster.source.GitHubRawReleaseV1):
         }
 
     def __init__(self, gui, engine):
-        ## BROKEN :D
         self.gui = gui
         self.engine = engine
 
@@ -418,20 +428,57 @@ class ThemeDownloader(harbourmaster.source.GitHubRawReleaseV1):
 
         super().__init__(self.gui.hm, config_file, config_data)
 
-    def _load(self):
+    def load(self):
+        self._data = self._config.setdefault('data', {}).setdefault('data', {})
         self._info = self._config.setdefault('data', {}).setdefault('info', {})
 
-    def _clear(self):
+    def save(self):
+        with self._file_name.open('w') as fh:
+            json.dump(self._config, fh, indent=4)
+
+    def update(self):
+        self.hm.callback.message(" - {}".format(_("Updating")))
+
+        self._data = {}
         self._info = {}
         self._themes = None
 
-    def _update(self):
+        if self._did_update:
+            self.hm.callback.message(" - {}".format(_("Up to date already")))
+            return
 
-        # cprint(f"- <b>{self._config['name']}</b>: Fetching info")
+        self.hm.callback.message("  - {}".format(_("Fetching latest info")))
+
+        release = net.fetch_json(self._config['url'])
+        if release is None:
+            return
+
+        ## The release assets: themes.json, the *.theme.zip files and images.zip(.md5)
+        for asset in release['assets']:
+            self._data[self.clean_name(asset['name'])] = {
+                'name': asset['name'],
+                'size': asset['size'],
+                'url': asset['browser_download_url'],
+                }
+
+        self._update_themes()
+
+        self._config['version'] = self.VERSION
+        self._config['data']['data'] = self._data
+        self._config['data']['info'] = self._info
+        self._config['last_checked'] = datetime.datetime.now().isoformat()
+
+        self.save()
+        self._did_update = True
+        self.hm.callback.message("  - {}".format(_("Done.")))
+
+    def _update_themes(self):
+        """
+        Fetch themes.json and, if it changed, the theme preview images.
+        """
         self.hm.callback.message("  - {}".format(_("Fetching info")))
 
-        # portsmd_url = "https://raw.githubusercontent.com/kloptops/PortMaster/main/ports.md"
-        self._config['data']['info'] = harbourmaster.fetch_json(self._data['themes.json']['url']).get("themes", {})
+        self._config['data']['info'] = net.fetch_json(self._data['themes.json']['url']).get("themes", {})
         self._info = self._config['data']['info']
 
         ## Download latest images.zip if needed.
@@ -441,10 +488,10 @@ class ThemeDownloader(harbourmaster.source.GitHubRawReleaseV1):
         images_url_md5 = self._data['images.zip.md5']['url']
         images_url_zip = self._data['images.zip']['url']
 
-        images_md5 = harbourmaster.fetch_text(images_url_md5).strip()
+        images_md5 = net.fetch_text(images_url_md5).strip()
         if self._images_md5 is None or images_md5 != self._images_md5:
             logger.debug(f"images_md5={images_md5}, self.images_md5={self._images_md5}")
-            images_zip = harbourmaster.download(self.hm.temp_dir / "images.zip", images_url_zip, images_md5, callback=self.hm.callback)
+            images_zip = net.download(self.hm.temp_dir / "images.zip", images_url_zip, images_md5, callback=self.hm.callback)
             if images_zip is None:
                 logger.warning(f"Unable to download {images_url_zip}")
                 return
