@@ -37,6 +37,12 @@ class HarbourMaster(InfoMixin, PortsMixin, FeaturedMixin, InstallMixin, Runtimes
 
     INFO_CHECK_INTERVAL = (60 * 60 * 1)
 
+    # Where the official sources moved to when they became PortMasterV3.
+    LEGACY_SOURCE_URLS = {
+        'PortMaster':            "https://github.com/PortsMaster/PortMaster-New/releases/latest/download/ports.json",
+        'PortMaster Multiverse': "https://github.com/PortsMaster-MV/PortMaster-MV-New/releases/latest/download/ports.json",
+        }
+
     # This is the new way of checking files.
     PORT_INFO_JSON = "https://api.github.com/repos/PortsMaster/PortMaster-Info/git/trees/main?recursive=true"
     PORT_INFO_URL  = "https://github.com/PortsMaster/PortMaster-Info/raw/main/"
@@ -208,6 +214,13 @@ class HarbourMaster(InfoMixin, PortsMixin, FeaturedMixin, InstallMixin, Runtimes
             if source_data is None:
                 continue
 
+            # Sources from before PortMasterV3: only the official ones still exist, point them at the V3 urls.
+            if source_data.get('api') in ('PortMasterV1', 'PortMasterV2') and source_data.get('name') in self.LEGACY_SOURCE_URLS:
+                source_data['api'] = 'PortMasterV3'
+                source_data['url'] = self.LEGACY_SOURCE_URLS[source_data['name']]
+                source_data['last_checked'] = None
+                source_data['data'] = {}
+
             fail = False
             for check_key, check_value in check_keys.items():
                 if check_key not in source_data:
@@ -222,26 +235,6 @@ class HarbourMaster(InfoMixin, PortsMixin, FeaturedMixin, InstallMixin, Runtimes
 
             if fail:
                 continue
-
-            # V1 to V2
-            if source_data['api'] == 'PortMasterV1':
-                source_data['api'] = 'PortMasterV2'
-                source_data['last_checked'] = None
-                source_data['data'] = {}
-
-            # V2 to V3
-            if source_data['api'] == 'PortMasterV2' and source_data['name'] == 'PortMaster':
-                source_data['api'] = 'PortMasterV3'
-                source_data['url'] = "https://github.com/PortsMaster/PortMaster-New/releases/latest/download/ports.json"
-                source_data['last_checked'] = None
-                source_data['data'] = {}
-
-            # V2 to V3
-            if source_data['api'] == 'PortMasterV2' and source_data['name'] == 'PortMaster Multiverse':
-                source_data['api'] = 'PortMasterV3'
-                source_data['url'] = "https://github.com/PortsMaster-MV/PortMaster-MV-New/releases/latest/download/ports.json"
-                source_data['last_checked'] = None
-                source_data['data'] = {}
 
             source = HM_SOURCE_APIS[source_data['api']](self, source_file, source_data)
 
