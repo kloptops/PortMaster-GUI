@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: MIT
 
+import json
+
+from types import SimpleNamespace
+
 import pytest
 
 from conftest import PYLIB_PATH
@@ -70,3 +74,96 @@ def test_default_theme(pugtheme):
 def test_missing_theme(pugtheme, tmp_path):
     with pytest.raises(ValueError):
         pugtheme.Theme(tmp_path)
+
+
+################################################################################
+## ThemeDownloader: the list of downloadable themes from the PortMaster-Themes release.
+THEMES_JSON = {
+    "themes": {
+        "default_theme": {"name": "Default", "creator": "PortMaster", "file": "default_theme.theme.zip",
+                          "md5": "0" * 32, "image": None},
+        "zelda": {"name": "Zelda", "creator": "someone", "description": "LTTP", "file": "Zelda.theme.zip",
+                  "md5": "1" * 32, "image": "zelda.png"},
+        "basic": {"name": "Basic", "creator": "someone else", "file": "basic.theme.zip",
+                  "md5": "2" * 32, "image": None},
+        }
+    }
+
+
+@pytest.fixture
+def theme_release(monkeypatch, tmp_path):
+    import harbourmaster
+    from harbourmaster.util import net
+
+    images_zip = tmp_path / "theme_images.zip"
+    import zipfile
+    with zipfile.ZipFile(str(images_zip), "w") as zf:
+        zf.writestr("images/zelda.png", b"png data")
+
+    base = "https://github.com/PortsMaster/PortMaster-Themes/releases/download/2026"
+    release = {"assets": [
+        {"name": name, "size": 10, "browser_download_url": f"{base}/{name}"}
+        for name in ("themes.json", "Zelda.theme.zip", "basic.theme.zip", "images.zip", "images.zip.md5")]}
+
+    fetched = []
+
+    def fetch_json(url):
+        fetched.append(url)
+        return json.loads(json.dumps(THEMES_JSON if url.endswith("themes.json") else release))
+
+    def fetch_text(url):
+        return "abc123  images.zip\n"
+
+    def download(file_name, file_url, md5_source=None, md5_result=None, callback=None, no_check=False):
+        fetched.append(file_url)
+        file_name.write_bytes(images_zip.read_bytes())
+        return file_name
+
+    ## ThemeDownloader has used both the net module and harbourmaster's re-exports.
+    for module in (net, harbourmaster):
+        monkeypatch.setattr(module, "fetch_json", fetch_json)
+        monkeypatch.setattr(module, "fetch_text", fetch_text)
+        monkeypatch.setattr(module, "download", download)
+
+    return SimpleNamespace(base=base, fetched=fetched)
+
+
+@pytest.fixture
+def downloader(pugtheme, hm, tmp_path):
+    def _downloader():
+        gui = SimpleNamespace(hm=hm)
+        engine = SimpleNamespace(get_theme_dir=lambda name: tmp_path / "themes" / name)
+        return pugtheme.ThemeDownloader(gui, engine)
+
+    return _downloader
+
+
+def test_theme_downloader_update(downloader, theme_release, tmp_path):
+    themes_downloader = downloader()
+    themes_downloader.update()
+
+    themes = themes_downloader.get_theme_list()
+
+    assert sorted(themes) == ["basic", "zelda"]
+    zelda = themes["zelda"]
+    assert zelda["name"] == "Zelda"
+    assert zelda["creator"] == "someone"
+    assert zelda["description"] == "LTTP"
+    assert zelda["url"] == f"{theme_release.base}/Zelda.theme.zip"
+    assert zelda["md5"] == "1" * 32
+    assert zelda["directory"] == tmp_path / "themes" / "zelda"
+    assert zelda["image"] is not None and zelda["image"].read_bytes() == b"png data"
+    assert themes["basic"]["image"] is None
+    assert themes["basic"]["description"] == ""
+
+
+def test_theme_downloader_loads_cached_list_offline(downloader, theme_release, hm):
+    downloader().update()
+    fetched = len(theme_release.fetched)
+
+    ## The hm fixture is offline, so a new downloader only reads themes.json from the config dir.
+    themes = downloader().get_theme_list()
+
+    assert len(theme_release.fetched) == fetched
+    assert sorted(themes) == ["basic", "zelda"]
+    assert (hm.cfg_dir / "themes.json").is_file()

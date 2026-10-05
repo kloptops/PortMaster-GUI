@@ -91,3 +91,41 @@ def test_raw_download_md5_unavailable(tmp_path, callback, monkeypatch):
 
     assert result is None
     assert callback.message_boxes == ["Unable to download verification file."]
+
+
+################################################################################
+## Old source files are upgraded to PortMasterV3 when loaded.
+LEGACY_SOURCES = {
+    "020_portmaster.source.json": ("pm", "PortMaster",
+        "https://github.com/PortsMaster/PortMaster-New/releases/latest/download/ports.json"),
+    "021_portmaster.multiverse.source.json": ("pmmv", "PortMaster Multiverse",
+        "https://github.com/PortsMaster-MV/PortMaster-MV-New/releases/latest/download/ports.json"),
+    }
+
+
+@pytest.mark.parametrize("api", ["PortMasterV1", "PortMasterV2"])
+def test_legacy_sources_upgrade_to_v3(make_hm, hm_dirs, api):
+    cfg_dir = make_hm().cfg_dir
+
+    for file_name, (prefix, name, _) in LEGACY_SOURCES.items():
+        (cfg_dir / file_name).write_text(json.dumps({
+            "prefix": prefix, "api": api, "name": name, "url": "https://example.com/old",
+            "last_checked": None, "version": 1, "data": {}}))
+
+    hm = make_hm()
+
+    for file_name, (prefix, name, url) in LEGACY_SOURCES.items():
+        assert isinstance(hm.sources[prefix], hm_source.PortMasterV3)
+        assert hm.sources[prefix]._config['url'] == url
+
+
+def test_unknown_source_api_is_skipped(make_hm):
+    cfg_dir = make_hm().cfg_dir
+    (cfg_dir / "030_custom.source.json").write_text(json.dumps({
+        "prefix": "custom", "api": "SomethingElse", "name": "Custom", "url": "https://example.com",
+        "last_checked": None, "version": 1, "data": {}}))
+
+    hm = make_hm()
+
+    assert "custom" not in hm.sources
+    assert sorted(hm.sources) == ['pm', 'pmmv']
