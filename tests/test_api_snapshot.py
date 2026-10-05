@@ -34,6 +34,15 @@ def _merge(*namespaces):
     return SimpleNamespace(**merged)
 
 
+## What used to be the pugwash script.
+_GUI_MODULES = ("pugwash.main", "pugwash.lang", "pugwash.util", "pugwash.update", "pugwash.app")
+
+
+def _gui_modules():
+    import importlib
+    return [importlib.import_module(name) for name in _GUI_MODULES]
+
+
 ## Where each area lives: (needs SDL, locate, modules its own definitions come from).
 ## Update these, not the snapshot, when code moves.
 AREAS = {
@@ -47,8 +56,8 @@ AREAS = {
     'pySDL2gui':              (True,  lambda: __import__("pugwash.sdl").sdl, ("pugwash.sdl",)),
     'pugtheme':               (True,  lambda: __import__("pugwash.theme").theme, ("pugwash.theme",)),
     'pugscene':               (True,  lambda: __import__("pugwash.scenes").scenes, ("pugwash.scenes",)),
-    'pugwash script':         (True,  lambda: _script("pugwash"), ("script_pugwash",)),
-    'PortMasterGUI':          (True,  lambda: _script("pugwash").PortMasterGUI, None),
+    'pugwash script':         (True,  lambda: _merge(*_gui_modules()), _GUI_MODULES),
+    'PortMasterGUI':          (True,  lambda: __import__("pugwash.app").app.PortMasterGUI, None),
     }
 
 

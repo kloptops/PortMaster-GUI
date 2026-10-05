@@ -270,8 +270,11 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="session")
 def pugwash():
-    """The pugwash script imported as a module (does not start the GUI)."""
-    return load_script(PM_DIR / "pugwash")
+    """The GUI modules (importing them does not start the GUI)."""
+    from types import SimpleNamespace
+    import pugwash.app
+    import pugwash.scenes
+    return SimpleNamespace(**{**vars(pugwash.scenes), **vars(pugwash.app)})
 
 
 ################################################################################

@@ -45,7 +45,8 @@ class LanguageScene(BaseScene):
 
             elif selected_option == 'select-language':
                 if self.gui.message_box(_("Do you want to change language?\n\nYou will have to restart for it to take affect."), want_cancel=True):
-                    if selected_parameter == DEFAULT_LANG:
+                    from pugwash import lang
+                    if selected_parameter == lang.DEFAULT_LANG:
                         del self.gui.hm.cfg_data['language']
 
                     else:
