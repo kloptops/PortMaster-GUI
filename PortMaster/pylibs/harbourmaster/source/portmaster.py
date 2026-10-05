@@ -15,11 +15,16 @@ from .base import BaseSource
 
 
 class PortMasterV3(BaseSource):
+    """
+    The PortMaster sources: a ports.json release asset listing every port and util
+    (runtimes, images.zip, images.NNN.zip, gameinfo.zip), cached in the source file.
+    """
     VERSION = 2
 
     # A safe number, at this point its better to just download the full zip again.
     MAX_IMAGES_XXX_ZIP = 4
 
+    ## Loading and saving
     def load(self):
         self._data = self._config.setdefault('data', {}).setdefault('data', {})
         self.ports = self._config.setdefault('data', {}).setdefault('ports', [])
@@ -31,6 +36,106 @@ class PortMasterV3(BaseSource):
         with self._file_name.open('w') as fh:
             json.dump(self._config, fh, indent=4)
 
+    ## Updating from ports.json
+    def update(self):
+        if self.hm.callback is not None:
+            self.hm.callback.message(" - {}".format(_("Updating")))
+
+        changed = False
+        # Scrap the rest
+        self._data = {}
+        self._info = {}
+        self.ports = []
+        self.utils = []
+        self.images = {}
+
+        if self._did_update:
+            self.hm.callback.message(" - {}".format(_("Up to date already")))
+            return
+
+        if self.hm.callback is not None:
+            self.hm.callback.message("  - {}".format(_("Fetching latest info")))
+
+        data = net.fetch_json(self._config['url'])
+        if data is None:
+            return
+
+        ## Load data from the assets.
+        for key, asset in data['ports'].items():
+            asset = port_info_load(asset)
+            if asset is None:
+                ## Skip bad items.
+                continue
+
+            result = {
+                'name': asset['name'],
+                'size': asset['source']['size'],
+                'md5': asset['source']['md5'],
+                'url': asset['source']['url'],
+                }
+
+            self.ports.append(self.clean_name(key))
+            self._info[self.clean_name(key)] = asset
+            self._data[self.clean_name(key)] = result
+
+        for key, asset in data['utils'].items():
+            result = {
+                'name': asset['name'],
+                'size': asset['size'],
+                'md5': asset['md5'],
+                'url': asset['url'],
+                }
+
+            if 'images' in asset:
+                result['images'] = asset['images']
+
+            if key.endswith('.squashfs'):
+                if 'runtime_name' in asset:
+                    key=asset['runtime_name']
+                    arch=asset['runtime_arch']
+                    self.hm.runtimes_info.setdefault(key, {}).setdefault('remote', {})[arch] = result.copy()
+
+                else:
+                    self.hm.runtimes_info.setdefault(key, {}).setdefault('remote', {})['aarch64'] = result.copy()
+
+                if 'name' in self.hm.runtimes_info[key]['remote']:
+                    del self.hm.runtimes_info[key]['remote']['name']
+                    del self.hm.runtimes_info[key]['remote']['size']
+                    del self.hm.runtimes_info[key]['remote']['md5']
+                    del self.hm.runtimes_info[key]['remote']['url']
+
+                self.hm.runtimes_info[key]['name'] = result['name']
+                self.hm.runtimes_info[key].setdefault('status', 'Unknown')
+                changed = True
+
+            self._data[self.clean_name(key)] = result
+            if key.lower() in ('images.zip', 'portmaster.zip'):
+                continue
+
+            self.utils.append(self.clean_name(key))
+
+        if changed:
+            self.hm.list_runtimes()
+            self.hm.save_config()
+
+        self._update_images()
+
+        self._load_images()
+
+        self._config['version'] = self.VERSION
+
+        self._config['data']['ports'] = self.ports
+        self._config['data']['utils'] = self.utils
+        self._config['data']['data']  = self._data
+        self._config['data']['info']  = self._info
+
+        self._config['last_checked'] = datetime.datetime.now().isoformat()
+
+        self.save()
+        self._did_update = True
+        self.hm.callback.message("  - {}".format(_("Done.")))
+
+    ## Port images
     def _load_images(self):
         self.images = {}
         all_ports = set(self.ports)
@@ -56,8 +161,26 @@ class PortMasterV3(BaseSource):
         for port_name in (all_ports - seen_ports):
             logger.warning(f"Port image {port_name}: missing.")
 
-    def _update2(self):
-        ## The new images.xxx.zip system.
+    def _update_images(self):
+        """
+        Bring the port images up to date, incrementally if possible.
+        """
+        self.hm.callback.message("  - {}".format(_("Fetching info")))
+
+        if 'images.zip' not in self._data:
+            return
+
+        if 'images.000.zip' in self._data and self._update_images_incremental():
+            return
+
+        self._update_images_full()
+
+    def _update_images_incremental(self):
+        """
+        Update the images from the images.NNN.zip files, only downloading the ones that changed.
+
+        Returns False if that isn't possible, then the full images.zip is used.
+        """
         img_id = 0
 
         images_data = None
@@ -173,19 +296,13 @@ class PortMasterV3(BaseSource):
         self._images_md5_file.write_text(self._data['images.zip']['md5'])
         self._images_md5 = self._data['images.zip']['md5']
 
-    def _update(self):
-        # cprint(f"- <b>{self._config['name']}</b>: Fetching info")
-        self.hm.callback.message("  - {}".format(_("Fetching info")))
+        return True
 
-        ## Download latest images.zip if needed.
-
-        if 'images.zip' not in self._data:
-            return
-
+    def _update_images_full(self):
+        """
+        Update the images from images.zip, if its md5 changed.
+        """
         if 'images.000.zip' in self._data:
-            if self._update2():
-                return
-
             images_data = None
 
             if self._images_json_file.is_file():
@@ -262,114 +379,7 @@ class PortMasterV3(BaseSource):
             self._images_md5_file.write_text(images_md5)
             self._images_md5 = images_md5
 
-    def _load(self):
-        ...
-
-    def _clear(self):
-        ...
-
-    def update(self):
-        # cprint(f"<b>{self._config['name']}</b>: updating")
-        if self.hm.callback is not None:
-            self.hm.callback.message(" - {}".format(_("Updating")))
-
-        changed = False
-        # Scrap the rest
-        self._data = {}
-        self._info = {}
-        self.ports = []
-        self.utils = []
-        self.images = {}
-
-        if self._did_update:
-            # cprint(f"- <b>{self._config['name']}</b>: up to date already.")
-            self.hm.callback.message(" - {}".format(_("Up to date already")))
-            return
-
-        # cprint(f"- <b>{self._config['name']}</b>: Fetching latest ports")
-        if self.hm.callback is not None:
-            self.hm.callback.message("  - {}".format(_("Fetching latest info")))
-
-        data = net.fetch_json(self._config['url'])
-        if data is None:
-            return
-
-        ## Load data from the assets.
-        for key, asset in data['ports'].items():
-            asset = port_info_load(asset)
-            if asset is None:
-                ## Skip bad items.
-                continue
-
-            result = {
-                'name': asset['name'],
-                'size': asset['source']['size'],
-                'md5': asset['source']['md5'],
-                'url': asset['source']['url'],
-                }
-
-            self.ports.append(self.clean_name(key))
-            self._info[self.clean_name(key)] = asset
-            self._data[self.clean_name(key)] = result
-
-        for key, asset in data['utils'].items():
-            result = {
-                'name': asset['name'],
-                'size': asset['size'],
-                'md5': asset['md5'],
-                'url': asset['url'],
-                }
-
-            if 'images' in asset:
-                result['images'] = asset['images']
-
-            if key.endswith('.squashfs'):
-                if 'runtime_name' in asset:
-                    key=asset['runtime_name']
-                    arch=asset['runtime_arch']
-                    self.hm.runtimes_info.setdefault(key, {}).setdefault('remote', {})[arch] = result.copy()
-
-                else:
-                    self.hm.runtimes_info.setdefault(key, {}).setdefault('remote', {})['aarch64'] = result.copy()
-
-                if 'name' in self.hm.runtimes_info[key]['remote']:
-                    del self.hm.runtimes_info[key]['remote']['name']
-                    del self.hm.runtimes_info[key]['remote']['size']
-                    del self.hm.runtimes_info[key]['remote']['md5']
-                    del self.hm.runtimes_info[key]['remote']['url']
-
-                self.hm.runtimes_info[key]['name'] = result['name']
-                self.hm.runtimes_info[key].setdefault('status', 'Unknown')
-                changed = True
-
-            self._data[self.clean_name(key)] = result
-            if key.lower() in ('images.zip', 'portmaster.zip'):
-                continue
-
-            self.utils.append(self.clean_name(key))
-
-        if changed:
-            self.hm.list_runtimes()
-            self.hm.save_config()
-
-        self._update()
-
-        self._load_images()
-
-        self._config['version'] = self.VERSION
-
-        self._config['data']['ports'] = self.ports
-        self._config['data']['utils'] = self.utils
-        self._config['data']['data']  = self._data
-        self._config['data']['info']  = self._info
-
-        self._config['last_checked'] = datetime.datetime.now().isoformat()
-
-        self.save()
-        self._did_update = True
-        # cprint(f"- <b>{self._config['name']}:</b> Done.")
-        self.hm.callback.message("  - {}".format(_("Done.")))
-
+    ## Port lookups
     def download(self, port_name, temp_dir=None, md5_result=None):
         if md5_result is None:
             md5_result = [None]
