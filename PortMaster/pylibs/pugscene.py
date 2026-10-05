@@ -782,13 +782,13 @@ class OptionScene(BaseScene):
                 _("Metadata Refresh"),
                 description=_("Manually update port metadata with missing/updated information and artwork."))
 
-        if self.gui.hm.device['name'] == 'TrimUI':
+        if self.gui.hm.platform_name == 'trimui':
             self.tags['option_list'].add_option(
                 'trimui-port-mode-toggle',
                 _("Ports Location: ") +  (self.gui.hm.cfg_data.get('trimui-port-mode', 'roms') == 'roms' and _("Roms section") or _("Ports tab")),
                 description=_("Location where ports should be installed to."))
 
-        if self.gui.hm.device['name'] == 'muOS':
+        if self.gui.hm.platform_name == 'muos':
             if '/mnt/sdcard' in subprocess.getoutput(['df']):
                 MUOS_MMC_TOGGLE = Path('/mnt/mmc/MUOS/PortMaster/config/muos_mmc_master_race.txt')
 
@@ -819,7 +819,7 @@ class OptionScene(BaseScene):
             _("Update PortMaster"),
             description=_("Force check for a new PortMaster version."))
 
-        if self.gui.hm.device['name'] not in ('muOS', 'TrimUI'):
+        if self.gui.hm.platform_name not in ('muos', 'trimui'):
             self.tags['option_list'].add_option(
                 'restore-portmaster',
                 _("Restore PortMaster"),
