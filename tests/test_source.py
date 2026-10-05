@@ -81,3 +81,13 @@ def test_update_failure_keeps_going(hm, monkeypatch):
     source.update()
 
     assert source.ports == []
+
+
+def test_raw_download_md5_unavailable(tmp_path, callback, monkeypatch):
+    ## Used to crash with NameError on the undefined `r` while reporting this.
+    monkeypatch.setattr(hm_net, "fetch_text", lambda url: None)
+
+    result = hm_source.raw_download(tmp_path, "https://example.com/port.zip.md5", callback=callback)
+
+    assert result is None
+    assert callback.message_boxes == ["Unable to download verification file."]

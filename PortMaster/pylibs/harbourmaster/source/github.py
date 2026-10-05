@@ -261,7 +261,7 @@ class GitHubRepoV1(GitHubRawReleaseV1):
             self._data[name] = result
 
             if name.endswith('.squashfs'):
-                self.utils.append(self.clean_name(asset['name']))
+                self.utils.append(name)
 
             if name == 'ports.json':
                 ports_json_file = name

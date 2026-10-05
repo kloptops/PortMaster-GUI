@@ -42,7 +42,7 @@ def raw_download(save_path, file_url, callback=None, file_name=None, md5_source=
         if md5_source is None:
             if callback is not None:
                 callback.message_box(_("Unable to download verification file."))
-            logger.error(f"Unable to download file: {file_url!r} [{r.status_code}]")
+            logger.error(f"Unable to download file: {file_url!r}")
             return None
 
         md5_source = md5_source.strip().split(' ', 1)[0]
