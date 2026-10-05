@@ -66,7 +66,25 @@ Device info comes from `hardware.HardwareDetector`, which reads the env file wri
 - `pugtheme.py`: theme loading. Themes are JSON describing per-scene elements; `default_theme/theme.json` is the built-in one. See `THEME.md` for the element/scene spec, inheritance order and text-template tags.
 - `pySDL2gui.py`: the low-level SDL2 widget/rendering layer (derived from port_gui).
 
-**FIFO control**: `pugwash fifo_control` and `harbourmaster fifo_control` let shell scripts (e.g. `PortMasterDialog.txt`, used by `PortMaster.sh` for autoinstall) drive dialogs, progress, installs and runtime checks through a named pipe. See `do_fifo_control` / `fifo_*` methods in pugwash.
+**FIFO control**: `pugwash fifo_control` and `harbourmaster fifo_control` let shell scripts (e.g. `PortMasterDialog.txt`, used by `PortMaster.sh` for autoinstall) drive dialogs, progress, installs and runtime checks through a named pipe. See `do_fifo_control` / `fifo_*` methods in pugwash. A `pugtask.FifoReader` thread reads the pipe.
+
+## Threading model (GUI)
+
+- **Main thread only:** SDL calls, scenes, `push_scene`/`pop_scene` and `set_data`. Worker threads hand work to the main thread through `gui.dispatcher` (`pugtask.MainThreadDispatcher`): `post()` for fire-and-forget, `call()` when they need the result. `do_update()` drains it every frame.
+- **Slow work goes through `gui.run_task(fn, ...)`.** It runs `fn` on a worker while the main loop keeps rendering, then returns the result or re-raises in the caller, so scene code stays synchronous. All HarbourMaster work (install, uninstall, update, runtime checks, startup) goes through it.
+  - Only one task runs at a time, because HarbourMaster isn't thread-safe.
+  - `run_task` called from the worker just runs inline.
+  - Calling it on the main thread while a task is running raises an error.
+- **`PortMasterGUI` is `hm.callback`, and its callbacks are thread-aware:**
+  - `message`, `progress`, `messages_begin` and `messages_end` are forwarded from the worker. Progress is coalesced to one update per frame.
+  - `message_box` blocks the worker until the user answers.
+  - Cancel (`do_cancel`) sets a flag on the task. The worker raises `CancelEvent` at its next `progress`/`message`, and only if `gui.cancellable` is true.
+- **While a task runs:** only the `messages`/`message_box` layers get input, and lower layers receive their `update_data` after the task. New scene code mustn't read `gui.hm` from the draw path.
+- **Other background threads:**
+  - `pugtask.DirectoryScanner` works out installed port sizes.
+  - `ImageManager.enable_async` decodes port screenshots (absolute paths) and returns a `PendingImage` until the main thread uploads the texture. Theme images load synchronously.
+- **`quit()` order:** it destroys textures, the renderer and the window before `sdl2.ext.quit()`. Garbage collection after `SDL_Quit` segfaults on muOS/Mali.
+- **Profiling:** `PM_PERF=1` logs fps and every gap between frames over 50 ms to `pugwash.txt` (`pugtask.FrameStats`). Run it on a real device to measure lag.
 
 ## Versioning and releases
 
