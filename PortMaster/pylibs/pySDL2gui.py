@@ -1971,7 +1971,7 @@ class SoundManager():
         if not self.is_init:
             return
 
-        sdl2.sdlmixer.Mix_MasterVolume(int(max(0, min(volume, 128))))
+        sdl2.sdlmixer.Mix_MasterVolume(int(max(0, min(v, 128))))
 
     def play(self, name, volume=128):
         '''
