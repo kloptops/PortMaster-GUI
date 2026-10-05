@@ -20,10 +20,9 @@ from pathlib import Path
 import loguru
 import pathlib
 import requests
-import utility
 
 from loguru import logger
-from utility import cprint, cstrip
+from .console import cprint, cstrip
 
 from .config import *
 

@@ -74,10 +74,6 @@ for _dir in ("tools", "ports"):
 
 os.environ.update(TEST_ENV)
 
-## pugwash and the harbourmaster script set these on builtins, library code relies on them.
-builtins.PYLIB_PATH = PYLIB_PATH
-builtins.PORTMASTER_DEBUG = False
-
 sys.path.insert(0, str(EXLIB_PATH))
 sys.path.insert(0, str(PYLIB_PATH))
 

@@ -54,22 +54,19 @@ if not (Path(__file__).parent / '.git').is_dir() and not (Path(__file__).parent 
         print("- removing pylibs.zip")
         PYLIB_ZIP.unlink()
 
-## HACK D:
-__builtins__.PYLIB_PATH = PYLIB_PATH
 
 sys.path.insert(0, str(EXLIB_PATH))
 sys.path.insert(0, str(PYLIB_PATH))
 
 ## STUFF :D
-__builtins__.PORTMASTER_DEBUG = False  ## This adds a lot of extra info
 
 ################################################################################
 ## Now load the stuff we include
-import utility
+from harbourmaster import console
 import harbourmaster
 import requests
 
-from utility import cprint, do_cprint_output
+from harbourmaster.console import cprint, do_cprint_output
 from loguru import logger
 
 from harbourmaster import (
@@ -667,9 +664,9 @@ def main(argv):
             LOG_FILE_HANDLE = None
 
         if config['no-colour']:
-            utility.do_color(False)
+            console.do_color(False)
         elif config['force-colour']:
-            utility.do_color(True)
+            console.do_color(True)
 
         ccb = ConsoleCallback(config)
         hm = HarbourMaster(config, temp_dir=temp_dir, callback=ccb)

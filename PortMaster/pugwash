@@ -13,7 +13,7 @@ PORTMASTER_RELEASE_URL = 'https://github.com/PortsMaster/PortMaster-GUI/releases
 PORTMASTER_RELEASE_VALUES = ('stable', 'beta', 'alpha')
 
 PORTMASTER_UPDATE_FREQUENCY = (60 * 60 * 1)
-__builtins__.PORTMASTER_DEBUG = False  ## This adds a lot of extra info
+PORTMASTER_DEBUG = False  ## This adds a lot of extra info
 
 import contextlib
 import ctypes
@@ -85,16 +85,14 @@ if not (PYLIB_PATH / 'resources' / 'NotoSansTC-Regular.ttf').is_file():
         tar.extractall(str(PYLIB_PATH / 'resources'))
 
 
-## HACK D:
-__builtins__.PYLIB_PATH = PYLIB_PATH
-
 sys.path.insert(0, str(EXLIB_PATH))
 sys.path.insert(0, str(PYLIB_PATH))
 
 ################################################################################
 ## Now load the stuff we include
-import utility
+from harbourmaster import console
 import harbourmaster
+harbourmaster.config.HM_DEBUG = PORTMASTER_DEBUG
 import png
 import requests
 
@@ -1986,10 +1984,10 @@ def main(argv):
             LOG_FILE_HANDLE = None
 
         if config['no-colour']:
-            utility.do_color(False)
+            console.do_color(False)
 
         elif config['force-colour']:
-            utility.do_color(True)
+            console.do_color(True)
 
         if not get_ip_address():
             config['offline'] = True

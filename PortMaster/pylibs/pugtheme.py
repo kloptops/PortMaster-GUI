@@ -14,10 +14,14 @@ import harbourmaster
 import harbourmaster.source
 import pySDL2gui
 
+from pathlib import Path
+
 from loguru import logger
 
 
 _ = gettext.gettext
+
+PYLIB_PATH = Path(__file__).resolve().parent
 
 
 ## TODO: make this all a class, and maybe make it less janky, maybe...

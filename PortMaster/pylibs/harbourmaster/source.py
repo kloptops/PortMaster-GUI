@@ -14,7 +14,7 @@ from urllib.parse import urlparse, urlunparse
 # Included imports
 
 from loguru import logger
-from utility import cprint, cstrip
+from .console import cprint, cstrip
 
 # Module imports
 from .config import *

@@ -5,7 +5,6 @@
 import pathlib
 
 # Included imports
-import utility
 
 from loguru import logger
 

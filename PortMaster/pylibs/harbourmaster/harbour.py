@@ -17,12 +17,12 @@ from pathlib import Path
 from gettext import gettext as _
 
 # Included imports
-import utility
 
 from loguru import logger
-from utility import cprint
+from .console import cprint
 
 # Module imports
+from . import config as hm_config
 from .config import *
 from .hardware import *
 from .util import *
@@ -1185,7 +1185,7 @@ class HarbourMaster():
             requirements = []
 
         result = match_requirements(capabilities, requirements)
-        if PORTMASTER_DEBUG and port_info['name'] not in self._TESTING:
+        if hm_config.HM_DEBUG and port_info['name'] not in self._TESTING:
             if show:
                 print(f"{port_info['name']}: {capabilities}, {requirements}: {result}")
             self._TESTING[port_info['name']] = True

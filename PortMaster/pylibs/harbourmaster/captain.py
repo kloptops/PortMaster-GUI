@@ -12,10 +12,9 @@ import zipfile
 from pathlib import Path
 
 # Included imports
-import utility
 
 from loguru import logger
-from utility import cprint
+from .console import cprint
 
 # Module imports
 from .config import *
