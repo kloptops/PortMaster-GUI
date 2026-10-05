@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-from conftest import PM_DIR, basic_port_files, load_script, write_port_zip
+from conftest import PM_DIR, basic_port_files, write_port_zip
 
 
 @pytest.fixture

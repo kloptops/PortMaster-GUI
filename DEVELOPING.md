@@ -61,4 +61,4 @@ DEVICE_NAME=RG353V CFW_NAME=ArkOS DEVICE_ARCH=aarch64 DISPLAY_WIDTH=640 DISPLAY_
     DEVICE_CAPABILITIES="aarch64 640x480 power opengl" python3 PortMaster/pugwash
 ```
 
-To force a particular window resolution, set `pretend_resolution` in `PortMasterGUI.__init__` in `PortMaster/pugwash`.
+To force a particular window resolution, set `pretend_resolution` in `PortMasterGUI.__init__` in `PortMaster/pylibs/pugwash/app.py`.

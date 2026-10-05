@@ -16,14 +16,10 @@ import pytest
 
 import harbourmaster
 
-from conftest import DATA_DIR, PM_DIR, load_script
+from conftest import DATA_DIR
 
 
 SNAPSHOT_FILE = DATA_DIR / "api_snapshot.json"
-
-
-def _script(name):
-    return load_script(PM_DIR / name)
 
 
 def _merge(*namespaces):

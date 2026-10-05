@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: MIT
 
-import builtins
 import atexit
-import importlib.machinery
-import importlib.util
 import json
 import os
 import shutil
@@ -128,20 +125,6 @@ def basic_port_files(name="testport", title="Test Port", script="Test Port.sh", 
         f"{name}/port.json": port_json,
         f"{name}/data.txt": "game data",
         }
-
-
-def load_script(path):
-    """
-    Import an extension-less script like PortMaster/pugwash as a module.
-    """
-    path = Path(path)
-    loader = importlib.machinery.SourceFileLoader(f"script_{path.name}", str(path))
-    spec = importlib.util.spec_from_loader(loader.name, loader)
-    module = importlib.util.module_from_spec(spec)
-    ## The scripts do `__builtins__.NAME = ...`, which only works when __builtins__ is the module.
-    module.__builtins__ = builtins
-    loader.exec_module(module)
-    return module
 
 
 class RecordingCallback(harbourmaster.Callback):
