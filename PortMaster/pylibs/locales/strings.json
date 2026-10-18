@@ -151,7 +151,7 @@
     "pylibs/harbourmaster/hm_runtimes.py:121",
     "pylibs/pugwash/app_ports.py:93",
     "pylibs/pugwash/scenes/filters.py:69",
-    "pylibs/pugwash/scenes/runtimes.py:91"
+    "pylibs/pugwash/scenes/runtimes.py:93"
   ],
   "Update Available": [
     "pylibs/harbourmaster/hm_runtimes.py:122",
@@ -225,23 +225,23 @@
   ],
   "Updating": [
     "pylibs/harbourmaster/source/portmaster.py:42",
-    "pylibs/pugwash/theme.py:441"
+    "pylibs/pugwash/theme.py:449"
   ],
   "Up to date already": [
     "pylibs/harbourmaster/source/portmaster.py:53",
-    "pylibs/pugwash/theme.py:448"
+    "pylibs/pugwash/theme.py:456"
   ],
   "Fetching latest info": [
     "pylibs/harbourmaster/source/portmaster.py:57",
-    "pylibs/pugwash/theme.py:451"
+    "pylibs/pugwash/theme.py:459"
   ],
   "Done.": [
     "pylibs/harbourmaster/source/portmaster.py:136",
-    "pylibs/pugwash/theme.py:474"
+    "pylibs/pugwash/theme.py:482"
   ],
   "Fetching info": [
     "pylibs/harbourmaster/source/portmaster.py:168",
-    "pylibs/pugwash/theme.py:480"
+    "pylibs/pugwash/theme.py:488"
   ],
   "Unable to find {port_name}.": [
     "pylibs/harbourmaster/source/portmaster.py:389"
@@ -309,7 +309,7 @@
   "Installed": [
     "pylibs/pugwash/app_ports.py:64",
     "pylibs/pugwash/app_ports.py:91",
-    "pylibs/pugwash/scenes/runtimes.py:91"
+    "pylibs/pugwash/scenes/runtimes.py:93"
   ],
   "Missing": [
     "pylibs/pugwash/app_ports.py:66"
@@ -441,8 +441,8 @@
     "pylibs/pugwash/scenes/ports.py:241",
     "pylibs/pugwash/scenes/ports.py:267",
     "pylibs/pugwash/scenes/ports.py:269",
-    "pylibs/pugwash/scenes/runtimes.py:107",
-    "pylibs/pugwash/scenes/runtimes.py:110",
+    "pylibs/pugwash/scenes/runtimes.py:109",
+    "pylibs/pugwash/scenes/runtimes.py:112",
     "pylibs/pugwash/scenes/themes.py:48",
     "pylibs/pugwash/scenes/themes.py:126",
     "pylibs/pugwash/scenes/themes.py:127"
@@ -918,12 +918,12 @@
   "Uninstall": [
     "pylibs/pugwash/scenes/port_info.py:36",
     "pylibs/pugwash/scenes/port_info.py:129",
-    "pylibs/pugwash/scenes/runtimes.py:107"
+    "pylibs/pugwash/scenes/runtimes.py:109"
   ],
   "Install": [
     "pylibs/pugwash/scenes/port_info.py:39",
     "pylibs/pugwash/scenes/port_info.py:131",
-    "pylibs/pugwash/scenes/runtimes.py:110"
+    "pylibs/pugwash/scenes/runtimes.py:112"
   ],
   "Port Info": [
     "pylibs/pugwash/scenes/port_info.py:63"
@@ -963,19 +963,19 @@
     "pylibs/pugwash/scenes/runtimes.py:47"
   ],
   "Used": [
-    "pylibs/pugwash/scenes/runtimes.py:92"
+    "pylibs/pugwash/scenes/runtimes.py:94"
   ],
   "Not Used": [
-    "pylibs/pugwash/scenes/runtimes.py:92"
+    "pylibs/pugwash/scenes/runtimes.py:94"
   ],
   "Check": [
-    "pylibs/pugwash/scenes/runtimes.py:107"
+    "pylibs/pugwash/scenes/runtimes.py:109"
   ],
   "Are you sure you want to download and verify all runtimes?": [
-    "pylibs/pugwash/scenes/runtimes.py:125"
+    "pylibs/pugwash/scenes/runtimes.py:127"
   ],
   "Deleted runtime {runtime}": [
-    "pylibs/pugwash/scenes/runtimes.py:167"
+    "pylibs/pugwash/scenes/runtimes.py:169"
   ],
   "For the best experience, switch to a supported firmware such as muOS or KNULLI.": [
     "pylibs/pugwash/scenes/startup.py:20"
