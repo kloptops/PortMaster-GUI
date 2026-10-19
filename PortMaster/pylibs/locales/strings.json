@@ -149,13 +149,13 @@
   ],
   "Not Installed": [
     "pylibs/harbourmaster/hm_runtimes.py:121",
-    "pylibs/pugwash/app_ports.py:194",
+    "pylibs/pugwash/app_ports.py:193",
     "pylibs/pugwash/scenes/filters.py:69",
     "pylibs/pugwash/scenes/runtimes.py:93"
   ],
   "Update Available": [
     "pylibs/harbourmaster/hm_runtimes.py:122",
-    "pylibs/pugwash/app_ports.py:193",
+    "pylibs/pugwash/app_ports.py:192",
     "pylibs/pugwash/scenes/filters.py:70"
   ],
   "Verified": [
@@ -225,23 +225,23 @@
   ],
   "Updating": [
     "pylibs/harbourmaster/source/portmaster.py:42",
-    "pylibs/pugwash/theme.py:449"
+    "pylibs/pugwash/theme.py:562"
   ],
   "Up to date already": [
     "pylibs/harbourmaster/source/portmaster.py:53",
-    "pylibs/pugwash/theme.py:456"
+    "pylibs/pugwash/theme.py:569"
   ],
   "Fetching latest info": [
     "pylibs/harbourmaster/source/portmaster.py:57",
-    "pylibs/pugwash/theme.py:459"
+    "pylibs/pugwash/theme.py:572"
   ],
   "Done.": [
     "pylibs/harbourmaster/source/portmaster.py:136",
-    "pylibs/pugwash/theme.py:482"
+    "pylibs/pugwash/theme.py:595"
   ],
   "Fetching info": [
     "pylibs/harbourmaster/source/portmaster.py:168",
-    "pylibs/pugwash/theme.py:488"
+    "pylibs/pugwash/theme.py:601"
   ],
   "Unable to find {port_name}.": [
     "pylibs/harbourmaster/source/portmaster.py:389"
@@ -271,7 +271,7 @@
   ],
   "N/A": [
     "pylibs/pugwash/app.py:407",
-    "pylibs/pugwash/app_ports.py:171"
+    "pylibs/pugwash/app_ports.py:170"
   ],
   "Fetching latest gameinfo.xml files and cover images.": [
     "pylibs/pugwash/app_commands.py:47"
@@ -302,23 +302,23 @@
     "pylibs/pugwash/app_ports.py:90"
   ],
   "** NO PORT **": [
-    "pylibs/pugwash/app_ports.py:130"
+    "pylibs/pugwash/app_ports.py:129"
   ],
   "Ready to Run": [
-    "pylibs/pugwash/app_ports.py:150",
+    "pylibs/pugwash/app_ports.py:149",
     "pylibs/pugwash/scenes/filters.py:66",
     "pylibs/pugwash/scenes/main_menu.py:96"
   ],
   "Requires Files": [
-    "pylibs/pugwash/app_ports.py:150"
+    "pylibs/pugwash/app_ports.py:149"
   ],
   "Installed": [
-    "pylibs/pugwash/app_ports.py:165",
-    "pylibs/pugwash/app_ports.py:192",
+    "pylibs/pugwash/app_ports.py:164",
+    "pylibs/pugwash/app_ports.py:191",
     "pylibs/pugwash/scenes/runtimes.py:93"
   ],
   "Missing": [
-    "pylibs/pugwash/app_ports.py:167"
+    "pylibs/pugwash/app_ports.py:166"
   ],
   "Installation failed, see log.txt for details.": [
     "pylibs/pugwash/autoinstall.py:101"
