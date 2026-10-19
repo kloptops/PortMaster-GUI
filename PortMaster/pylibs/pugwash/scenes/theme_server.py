@@ -12,9 +12,9 @@ import threading
 from loguru import logger
 
 from harbourmaster.i18n import _
-from pugwash import PYLIB_PATH, lang
+from pugwash import PYLIB_PATH
 from pugwash.util import get_ip_address
-from .base import BaseScene
+from .base import BaseScene, plain_font
 
 
 PORT = 8090
@@ -38,15 +38,8 @@ def worker_count(meminfo="/proc/meminfo"):
 
 def fallback_section():
     """For themes without a "theme_server" section: plain, in PortMaster's own font for the
-    language (the default theme's "font[ja_JP]" & co), as the address has to be readable."""
-    font = "DejaVuSans.ttf"
-    try:
-        with open(str(PYLIB_PATH / "default_theme" / "theme.json"), encoding="utf-8") as fh:
-            base = json.load(fh).get("#base", {})
-        font = base.get(f"font[{lang.CURRENT_LANG}]") or base.get("font") or font
-    except (OSError, ValueError, AttributeError):
-        pass
-
+    language, as the address has to be readable."""
+    font = plain_font()
     text = {"font": font, "font-color": "#e8e8ec", "font-size": 18}
     return {
         "background": {"area": [0.0, 0.0, 1.0, 1.0], "fill": "#1c1c22"},
