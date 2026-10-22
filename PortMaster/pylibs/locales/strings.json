@@ -22,36 +22,36 @@
     "pylibs/harbourmaster/harbour.py:126"
   ],
   "Loading Sources.": [
-    "pylibs/harbourmaster/harbour.py:210"
+    "pylibs/harbourmaster/harbour.py:207"
   ],
   "Download validation failed.": [
     "pylibs/harbourmaster/hm_info.py:71",
-    "pylibs/harbourmaster/hm_info.py:91",
-    "pylibs/harbourmaster/util/net.py:141"
+    "pylibs/harbourmaster/hm_info.py:93",
+    "pylibs/harbourmaster/util/net.py:148"
   ],
   "Unable to download file.": [
-    "pylibs/harbourmaster/hm_info.py:86"
+    "pylibs/harbourmaster/hm_info.py:88"
   ],
   "Loading Info.": [
-    "pylibs/harbourmaster/hm_info.py:101"
+    "pylibs/harbourmaster/hm_info.py:103"
   ],
   "Fetching latest ports info data.": [
-    "pylibs/harbourmaster/hm_info.py:120"
-  ],
-  "Fetching latest porters info.": [
     "pylibs/harbourmaster/hm_info.py:124"
   ],
-  "Fetching latest port stats.": [
+  "Fetching latest porters info.": [
     "pylibs/harbourmaster/hm_info.py:128"
   ],
-  "Fetching latest featured ports.": [
+  "Fetching latest port stats.": [
     "pylibs/harbourmaster/hm_info.py:132"
   ],
-  "Fetching latest featured port images zip.": [
+  "Fetching latest featured ports.": [
     "pylibs/harbourmaster/hm_info.py:136"
   ],
+  "Fetching latest featured port images zip.": [
+    "pylibs/harbourmaster/hm_info.py:140"
+  ],
   "Fetching featured port image {file_name}": [
-    "pylibs/harbourmaster/hm_info.py:281"
+    "pylibs/harbourmaster/hm_info.py:285"
   ],
   "Installing Theme {download_name}.": [
     "pylibs/harbourmaster/hm_install.py:57"
@@ -133,77 +133,77 @@
     "pylibs/harbourmaster/hm_install.py:579"
   ],
   "Error uninstalling {port_name}\n\n{error}": [
-    "pylibs/harbourmaster/hm_install.py:623"
-  ],
-  "Successfully uninstalled {port_name}": [
     "pylibs/harbourmaster/hm_install.py:627"
   ],
+  "Successfully uninstalled {port_name}": [
+    "pylibs/harbourmaster/hm_install.py:631"
+  ],
   "Loading Ports.": [
-    "pylibs/harbourmaster/hm_ports.py:187"
+    "pylibs/harbourmaster/hm_ports.py:191"
   ],
   "Port {runtime} contains a bad runtime, game may not run correctly.": [
-    "pylibs/harbourmaster/hm_runtimes.py:90"
+    "pylibs/harbourmaster/hm_runtimes.py:96"
   ],
   "Port {runtime} contains an unknown runtime, game may not run correctly.": [
-    "pylibs/harbourmaster/hm_runtimes.py:104"
+    "pylibs/harbourmaster/hm_runtimes.py:110"
   ],
   "Not Installed": [
-    "pylibs/harbourmaster/hm_runtimes.py:121",
+    "pylibs/harbourmaster/hm_runtimes.py:127",
     "pylibs/pugwash/app_ports.py:193",
     "pylibs/pugwash/scenes/filters.py:69",
     "pylibs/pugwash/scenes/runtimes.py:93"
   ],
   "Update Available": [
-    "pylibs/harbourmaster/hm_runtimes.py:122",
+    "pylibs/harbourmaster/hm_runtimes.py:128",
     "pylibs/pugwash/app_ports.py:192",
     "pylibs/pugwash/scenes/filters.py:70"
   ],
   "Verified": [
-    "pylibs/harbourmaster/hm_runtimes.py:123"
+    "pylibs/harbourmaster/hm_runtimes.py:129"
   ],
   "Unverified": [
-    "pylibs/harbourmaster/hm_runtimes.py:124"
+    "pylibs/harbourmaster/hm_runtimes.py:130"
   ],
   "Broken": [
-    "pylibs/harbourmaster/hm_runtimes.py:125"
+    "pylibs/harbourmaster/hm_runtimes.py:131"
   ],
   "Unable do download a runtime when in offline mode.": [
-    "pylibs/harbourmaster/hm_runtimes.py:136"
-  ],
-  "Verifying runtime {runtime}": [
     "pylibs/harbourmaster/hm_runtimes.py:142"
   ],
+  "Verifying runtime {runtime}": [
+    "pylibs/harbourmaster/hm_runtimes.py:148"
+  ],
   "Verifying": [
-    "pylibs/harbourmaster/hm_runtimes.py:151",
-    "pylibs/harbourmaster/hm_runtimes.py:154"
+    "pylibs/harbourmaster/hm_runtimes.py:157",
+    "pylibs/harbourmaster/hm_runtimes.py:160"
   ],
   "Unable to find a download for {runtime}.": [
-    "pylibs/harbourmaster/hm_runtimes.py:179"
-  ],
-  "Unable to download {runtime} in {device_arch}.": [
     "pylibs/harbourmaster/hm_runtimes.py:185"
   ],
+  "Unable to download {runtime} in {device_arch}.": [
+    "pylibs/harbourmaster/hm_runtimes.py:191"
+  ],
   "Verified {runtime} successfully.": [
-    "pylibs/harbourmaster/hm_runtimes.py:207"
+    "pylibs/harbourmaster/hm_runtimes.py:213"
   ],
   "Verified {runtime}.": [
-    "pylibs/harbourmaster/hm_runtimes.py:210"
-  ],
-  "Updating {runtime}.": [
     "pylibs/harbourmaster/hm_runtimes.py:216"
   ],
+  "Updating {runtime}.": [
+    "pylibs/harbourmaster/hm_runtimes.py:222"
+  ],
   "Runtime {runtime} is broken, reinstalling.": [
-    "pylibs/harbourmaster/hm_runtimes.py:220"
+    "pylibs/harbourmaster/hm_runtimes.py:226"
   ],
   "Downloading runtime {runtime}.": [
-    "pylibs/harbourmaster/hm_runtimes.py:224"
+    "pylibs/harbourmaster/hm_runtimes.py:230"
   ],
   "Unable to download {runtime}, game may not run correctly.": [
-    "pylibs/harbourmaster/hm_runtimes.py:253",
-    "pylibs/harbourmaster/hm_runtimes.py:263"
+    "pylibs/harbourmaster/hm_runtimes.py:259",
+    "pylibs/harbourmaster/hm_runtimes.py:269"
   ],
   "Successfully downloaded {runtime}.": [
-    "pylibs/harbourmaster/hm_runtimes.py:272"
+    "pylibs/harbourmaster/hm_runtimes.py:278"
   ],
   "\n\nIn order to do so:\nMENU -> UTILITIES -> Rescan Rom Directory": [
     "pylibs/harbourmaster/platform/retrodeck.py:18"
@@ -227,50 +227,46 @@
     "pylibs/harbourmaster/source/portmaster.py:42",
     "pylibs/pugwash/theme.py:562"
   ],
-  "Up to date already": [
-    "pylibs/harbourmaster/source/portmaster.py:53",
-    "pylibs/pugwash/theme.py:569"
-  ],
   "Fetching latest info": [
-    "pylibs/harbourmaster/source/portmaster.py:57",
+    "pylibs/harbourmaster/source/portmaster.py:46",
     "pylibs/pugwash/theme.py:572"
   ],
   "Done.": [
-    "pylibs/harbourmaster/source/portmaster.py:136",
+    "pylibs/harbourmaster/source/portmaster.py:134",
     "pylibs/pugwash/theme.py:595"
   ],
   "Fetching info": [
-    "pylibs/harbourmaster/source/portmaster.py:168",
+    "pylibs/harbourmaster/source/portmaster.py:166",
     "pylibs/pugwash/theme.py:601"
   ],
   "Unable to find {port_name}.": [
-    "pylibs/harbourmaster/source/portmaster.py:389"
+    "pylibs/harbourmaster/source/portmaster.py:387"
   ],
   "Unable to download file. [{status_code}]": [
-    "pylibs/harbourmaster/util/net.py:70"
+    "pylibs/harbourmaster/util/net.py:77"
   ],
   "Downloading {file_url} - ({total_length_mb})": [
-    "pylibs/harbourmaster/util/net.py:86"
+    "pylibs/harbourmaster/util/net.py:93"
   ],
   "Downloading file.": [
-    "pylibs/harbourmaster/util/net.py:98",
-    "pylibs/harbourmaster/util/net.py:112"
+    "pylibs/harbourmaster/util/net.py:105",
+    "pylibs/harbourmaster/util/net.py:119"
   ],
   "Download failed: {err}": [
-    "pylibs/harbourmaster/util/net.py:129"
+    "pylibs/harbourmaster/util/net.py:136"
   ],
   "Passed file validation.": [
-    "pylibs/harbourmaster/util/net.py:147"
+    "pylibs/harbourmaster/util/net.py:154"
   ],
   "Unable to validate download.": [
-    "pylibs/harbourmaster/util/net.py:152"
+    "pylibs/harbourmaster/util/net.py:159"
   ],
   "Unknown IP": [
     "pylibs/pugwash/app.py:254",
-    "pylibs/pugwash/app.py:582"
+    "pylibs/pugwash/app.py:581"
   ],
   "N/A": [
-    "pylibs/pugwash/app.py:407",
+    "pylibs/pugwash/app.py:406",
     "pylibs/pugwash/app_ports.py:170"
   ],
   "Fetching latest gameinfo.xml files and cover images.": [
@@ -906,10 +902,10 @@
     "pylibs/pugwash/scenes/options.py:408"
   ],
   "Deleting Runtimes:": [
-    "pylibs/pugwash/scenes/options.py:476"
+    "pylibs/pugwash/scenes/options.py:477"
   ],
   "Source Manager": [
-    "pylibs/pugwash/scenes/options.py:501"
+    "pylibs/pugwash/scenes/options.py:502"
   ],
   "Port Info Popup": [
     "pylibs/pugwash/scenes/port_info.py:13"
@@ -1057,6 +1053,9 @@
   ],
   "{item_name} (Selected)": [
     "pylibs/pugwash/scenes/themes.py:120"
+  ],
+  "Up to date already": [
+    "pylibs/pugwash/theme.py:569"
   ],
   "You are switching from the {old_release_channel} to the {new_release_channel} version.\n\nDo you want to downgrade?": [
     "pylibs/pugwash/update.py:79"
