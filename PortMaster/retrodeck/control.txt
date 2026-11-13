@@ -139,7 +139,7 @@ echo "\$sdl_controllerconfig = $sdl_controllerconfig"
 
 # Enable mount hack :D
 export PATH="$RETRODECK_TOOL_BIN:$RETRODECK_ARCH_DIR:$controlfolder/retrodeck:$PATH"
-export LD_LIBRARY_PATH="$RETRODECK_ARCH_DIR:$controlfolder/retrodeck/libs.$DEVICE_ARCH:$controlfolder/retrodeck:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$RETRODECK_ARCH_DIR:$controlfolder/retrodeck/libs.$RETRODECK_ARCH:$controlfolder/retrodeck:$LD_LIBRARY_PATH"
 
 get_controls() {
   ANALOGSTICKS="2"
