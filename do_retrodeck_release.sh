@@ -67,6 +67,11 @@ mkdir -p RD_PM/PortMaster/retrodeck/libs.aarch64
 ln -sfn /lib/aarch64-linux-gnu/libbz2.so.1 \
   RD_PM/PortMaster/retrodeck/libs.aarch64/libbz2.so.1.0
 
+# Pingus' SDL_mixer needs libmodplug, which PortMaster already bundles with
+# the LÖVE runtime. Make it available to all RetroDECK ports as well.
+cp -p "$REPO_DIR/PortMaster/runtimes/love_11.5/libs.aarch64/libmodplug.so.1" \
+  RD_PM/PortMaster/retrodeck/libs.aarch64/
+
 # Neverball needs the GLVND GLES 1 dispatch library. The Flatpak runtime
 # supplies GLdispatch and the Mesa driver; CI stages the ARM64 dispatch library.
 GLES1_LIBRARY="$REPO_DIR/PortMaster/retrodeck/aarch64/libGLESv1_CM.so.1.2.0"
