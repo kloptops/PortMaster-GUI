@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+# SPDX-License-Identifier: MIT
+#
+# RetroDECK platform settings.
+
+# Use the reported display dimensions and start Godot ports fullscreen.
+GODOT2_OPTS="-r ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT} -f"
+GODOT_OPTS="--resolution ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT} -f"
