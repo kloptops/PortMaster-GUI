@@ -61,7 +61,13 @@ mkdir -p RD_PM/
 mkdir -p RD_PM/PortMaster/libs
 cp -a "$REPO_DIR/PortMaster/libs.aarch64" RD_PM/PortMaster/libs/
 
+# KDE's Flatpak runtime provides BZip2 as libbz2.so.1, while some AArch64 ports
+# (including Frogfall's bundled libzip) request libbz2.so.1.0.
+mkdir -p RD_PM/PortMaster/retrodeck/libs.aarch64
+ln -sfn /lib/aarch64-linux-gnu/libbz2.so.1 \
+  RD_PM/PortMaster/retrodeck/libs.aarch64/libbz2.so.1.0
+
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_DIR/retrodeck.portmaster.zip"
-(cd RD_PM && zip -9qr "$DIST_DIR/retrodeck.portmaster.zip" PortMaster/)
+(cd RD_PM && zip -9qry "$DIST_DIR/retrodeck.portmaster.zip" PortMaster/)
 echo "Built $DIST_DIR/retrodeck.portmaster.zip"
