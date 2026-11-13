@@ -17,7 +17,65 @@ concurrency:
   group: release # only 1 release at a time
 
 jobs:
+  # Build against Ubuntu 24.04 (glibc 2.39) to keep the dynamic LZO library
+  # compatible with RetroDECK's KDE Flatpak runtime (glibc 2.42). unsquashfs
+  # is linked statically; liblzo2.so.2 remains bundled for other consumers.
+  build-retrodeck-tools:
+    name: RetroDECK tools (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            elf_machine: Advanced Micro Devices X86-64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            elf_machine: AArch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Install Ubuntu 24.04 packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            binutils build-essential git liblzo2-2 liblzo2-dev \
+            liblz4-dev liblzma-dev libzstd-dev zlib1g-dev
+
+      - name: Build static unsquashfs and stage LZO library
+        run: |
+          mkdir -p "retrodeck-tools/${{ matrix.arch }}"
+          squashfs_tools_ref=3bd46f82c9163459bd78cbe6917e595ac2459a7d
+          git clone https://github.com/plougher/squashfs-tools.git "$RUNNER_TEMP/squashfs-tools"
+          git -C "$RUNNER_TEMP/squashfs-tools" checkout "$squashfs_tools_ref"
+          make -C "$RUNNER_TEMP/squashfs-tools/squashfs-tools" unsquashfs LDFLAGS=-static
+          cp "$RUNNER_TEMP/squashfs-tools/squashfs-tools/unsquashfs" "retrodeck-tools/${{ matrix.arch }}/unsquashfs"
+          lzo_library="$(ldconfig -p | awk '/liblzo2\.so\.2 / { print $NF; exit }')"
+          test -n "$lzo_library"
+          cp -L "$lzo_library" "retrodeck-tools/${{ matrix.arch }}/liblzo2.so.2"
+          chmod 755 "retrodeck-tools/${{ matrix.arch }}/unsquashfs"
+          chmod 755 "retrodeck-tools/${{ matrix.arch }}/liblzo2.so.2"
+          for binary in "retrodeck-tools/${{ matrix.arch }}"/*; do
+            readelf -h "$binary" | grep -F "Machine:" | grep -F "${{ matrix.elf_machine }}"
+          done
+          if readelf -d "retrodeck-tools/${{ matrix.arch }}/unsquashfs" | grep -q NEEDED; then
+            echo "unsquashfs is not statically linked" >&2
+            exit 1
+          fi
+          if readelf -l "retrodeck-tools/${{ matrix.arch }}/unsquashfs" | grep -q INTERP; then
+            echo "unsquashfs still requires a dynamic loader" >&2
+            exit 1
+          fi
+          help_output="$("retrodeck-tools/${{ matrix.arch }}/unsquashfs" -help 2>&1 || true)"
+          grep -qi lzo <<< "$help_output"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retrodeck-tools-${{ matrix.arch }}
+          path: retrodeck-tools/${{ matrix.arch }}/*
+          if-no-files-found: error
+
   build:
+    needs: build-retrodeck-tools
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +87,21 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
       - uses: actions/checkout@v4
+
+      - name: Download RetroDECK tools
+        uses: actions/download-artifact@v4
+        with:
+          pattern: retrodeck-tools-*
+          path: retrodeck-tools
+          merge-multiple: false
+
+      - name: Install architecture-specific tools
+        run: |
+          for arch in x86_64 aarch64; do
+            mkdir -p "PortMaster/retrodeck/$arch"
+            cp "retrodeck-tools/retrodeck-tools-$arch/"* "PortMaster/retrodeck/$arch/"
+            chmod 755 "PortMaster/retrodeck/$arch/unsquashfs" "PortMaster/retrodeck/$arch/liblzo2.so.2"
+          done
 
       - name: Clean out files part 2
         run: |

@@ -76,6 +76,38 @@ fi
 echo "\$controlfolder = $controlfolder"
 echo "\$directory = $directory"
 
+# Select the bundled tools and libraries for the host architecture.
+case "$(uname -m 2>/dev/null)" in
+  x86_64|amd64) RETRODECK_ARCH="x86_64" ;;
+  aarch64|arm64) RETRODECK_ARCH="aarch64" ;;
+  armv7*|armhf|armv8l) RETRODECK_ARCH="armhf" ;;
+  *)
+    echo "Unsupported RetroDECK architecture: $(uname -m 2>/dev/null)" >&2
+    exit 255
+    ;;
+esac
+
+RETRODECK_ARCH_DIR="$controlfolder/retrodeck/$RETRODECK_ARCH"
+if [ ! -d "$RETRODECK_ARCH_DIR" ]; then
+  echo "No RetroDECK tools are installed for $RETRODECK_ARCH." >&2
+  exit 255
+fi
+
+# Use an architecture-specific command overlay for tools stored in PortMaster's
+# root, and the matching unsquashfs/LZO files from the architecture directory.
+RETRODECK_TOOL_BIN="$controlfolder/retrodeck/.arch-tools/$RETRODECK_ARCH"
+mkdir -p "$RETRODECK_TOOL_BIN"
+case "$RETRODECK_ARCH" in
+  x86_64) TOOL_SUFFIX=".x86_64" ;;
+  armhf) TOOL_SUFFIX=".armhf" ;;
+  aarch64) TOOL_SUFFIX="" ;;
+esac
+for tool in gptokeyb gptokeyb2 xdelta3; do
+  if [ -x "$controlfolder/$tool$TOOL_SUFFIX" ]; then
+    ln -sfn "$controlfolder/$tool$TOOL_SUFFIX" "$RETRODECK_TOOL_BIN/$tool"
+  fi
+done
+
 export LD_LIBRARY_PATH="/usr/lib:/lib:/app/retrodeck/components/shared-libs:/app/retrodeck/components/shared-libs/org.kde.Sdk/6.7/:/app/retrodeck/components/shared-libs:/app/retrodeck/components/shared-libs/org.kde.Platform/6.7/:/app/retrodeck/components/shared-libs/org.gnome.Platform/49/:/app/retrodeck/components/shared-libs/org.freedesktop.Platform/25.08/:$LD_LIBRARY_PATH"
 export PYSDL2_DLL_PATH="$LD_LIBRARY_PATH"
 export ESUDO=""
@@ -90,27 +122,13 @@ export sdl_controllerconfig="$(grep "$SDL_GAMECONTROLLERCONFIG_FILE" -e "${DEVIC
 echo "\$sdl_controllerconfig = $sdl_controllerconfig"
 
 # Enable mount hack :D
-export PATH="$controlfolder/retrodeck:$PATH"
-export LD_LIBRARY_PATH="$controlfolder/retrodeck:$LD_LIBRARY_PATH"
+export PATH="$RETRODECK_TOOL_BIN:$RETRODECK_ARCH_DIR:$controlfolder/retrodeck:$PATH"
+export LD_LIBRARY_PATH="$RETRODECK_ARCH_DIR:$controlfolder/retrodeck:$LD_LIBRARY_PATH"
 
 get_controls() {
   ANALOGSTICKS="2"
   LOWRES="N"
 }
-
-# CRUSH KILL DESTROY
-if [ -f "$controlfolder/gptokeyb.x86_64" ]; then
-  mv "$controlfolder/gptokeyb.x86_64" "$controlfolder/gptokeyb"
-fi
-
-if [ -f "$controlfolder/gptokeyb2.x86_64" ]; then
-  mv "$controlfolder/gptokeyb2.x86_64" "$controlfolder/gptokeyb2"
-fi
-
-# CRUSH KILL DESTROY
-if [ -f "$controlfolder/xdelta3.x86_64" ]; then
-  mv "$controlfolder/xdelta3.x86_64" "$controlfolder/xdelta3"
-fi
 
 export PM_CAN_MOUNT="N"
 source $controlfolder/device_info.txt
