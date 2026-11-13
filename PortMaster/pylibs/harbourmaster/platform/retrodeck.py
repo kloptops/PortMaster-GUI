@@ -168,6 +168,12 @@ class PlatformRetroDECK(PlatformBase):
             if helper.is_file():
                 helper.chmod(helper.stat().st_mode | 0o111)
 
+        # Python's zip extraction does not preserve the executable bit. LOVE
+        # ports launch this architecture-specific runtime directly.
+        for runtime in (PM_DIR / "runtimes").glob("*/love.aarch64"):
+            if runtime.is_file():
+                runtime.chmod(runtime.stat().st_mode | 0o111)
+
         # ACTIVATE THE RetroDECK CONTROL
         logger.debug(f'Copy {RD_DIR / "control.txt"} -> {PM_DIR / "control.txt"}')
         shutil.copy(RD_DIR / "control.txt", PM_DIR / "control.txt")
