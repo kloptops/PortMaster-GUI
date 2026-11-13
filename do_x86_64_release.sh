@@ -43,6 +43,14 @@ mkdir -p RD_PM/
   cd PortMaster
   cp retrodeck/control.txt control.txt
   cp retrodeck/PortMaster.txt PortMaster.sh
+
+  # Keep ARM64 input helpers in RetroDECK's private tool directory. PortMaster
+  # updates replace the unsuffixed root helpers with their own platform build.
+  if readelf -h gptokeyb | grep -q 'Machine:.*AArch64'; then
+    mkdir -p retrodeck/aarch64
+    cp -p gptokeyb gptokeyb2 retrodeck/aarch64/
+  fi
+
   rm -f tasksetter
   touch tasksetter
 )

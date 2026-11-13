@@ -93,20 +93,36 @@ if [ ! -d "$RETRODECK_ARCH_DIR" ]; then
   exit 255
 fi
 
-# Use an architecture-specific command overlay for tools stored in PortMaster's
-# root, and the matching unsquashfs/LZO files from the architecture directory.
+# Use architecture-matched tools. PortMaster updates can replace the unsuffixed
+# root helpers, so RetroDECK keeps its AArch64 copies in its private tool dir.
 RETRODECK_TOOL_BIN="$controlfolder/retrodeck/.arch-tools/$RETRODECK_ARCH"
 mkdir -p "$RETRODECK_TOOL_BIN"
 case "$RETRODECK_ARCH" in
-  x86_64) TOOL_SUFFIX=".x86_64" ;;
-  armhf) TOOL_SUFFIX=".armhf" ;;
-  aarch64) TOOL_SUFFIX="" ;;
+  x86_64)
+    TOOL_SUFFIX=".x86_64"
+    TOOL_SOURCE_DIR="$controlfolder"
+    ;;
+  armhf)
+    TOOL_SUFFIX=".armhf"
+    TOOL_SOURCE_DIR="$controlfolder"
+    ;;
+  aarch64)
+    TOOL_SUFFIX=""
+    TOOL_SOURCE_DIR="$RETRODECK_ARCH_DIR"
+    ;;
 esac
 for tool in gptokeyb gptokeyb2 xdelta3; do
-  if [ -x "$controlfolder/$tool$TOOL_SUFFIX" ]; then
-    ln -sfn "$controlfolder/$tool$TOOL_SUFFIX" "$RETRODECK_TOOL_BIN/$tool"
+  if [ -x "$TOOL_SOURCE_DIR/$tool$TOOL_SUFFIX" ]; then
+    ln -sfn "$TOOL_SOURCE_DIR/$tool$TOOL_SUFFIX" "$RETRODECK_TOOL_BIN/$tool"
+  elif [ "$RETRODECK_ARCH" = "aarch64" ]; then
+    rm -f "$RETRODECK_TOOL_BIN/$tool"
   fi
 done
+
+if [ "$RETRODECK_ARCH" = "aarch64" ] && { [ ! -x "$RETRODECK_ARCH_DIR/gptokeyb" ] || [ ! -x "$RETRODECK_ARCH_DIR/gptokeyb2" ]; }; then
+  echo "AArch64 gptokeyb and gptokeyb2 must be installed in $RETRODECK_ARCH_DIR; refusing to use the x86_64 PortMaster binaries." >&2
+  exit 255
+fi
 
 export LD_LIBRARY_PATH="/usr/lib:/lib:/app/retrodeck/components/shared-libs:/app/retrodeck/components/shared-libs/org.kde.Sdk/6.7/:/app/retrodeck/components/shared-libs:/app/retrodeck/components/shared-libs/org.kde.Platform/6.7/:/app/retrodeck/components/shared-libs/org.gnome.Platform/49/:/app/retrodeck/components/shared-libs/org.freedesktop.Platform/25.08/:$LD_LIBRARY_PATH"
 export PYSDL2_DLL_PATH="$LD_LIBRARY_PATH"
@@ -134,5 +150,10 @@ export PM_CAN_MOUNT="N"
 source $controlfolder/device_info.txt
 source $controlfolder/funcs.txt
 
-export GPTOKEYB2="$ESUDO env LD_PRELOAD=$controlfolder/libinterpose.${DEVICE_ARCH}.so $controlfolder/gptokeyb2 $ESUDOKILL"
-export GPTOKEYB="$ESUDO $controlfolder/gptokeyb $ESUDOKILL"
+if [ "$RETRODECK_ARCH" = "aarch64" ]; then
+  export GPTOKEYB2="$ESUDO env LD_PRELOAD=$controlfolder/libinterpose.${DEVICE_ARCH}.so $RETRODECK_ARCH_DIR/gptokeyb2 $ESUDOKILL"
+  export GPTOKEYB="$ESUDO $RETRODECK_ARCH_DIR/gptokeyb $ESUDOKILL"
+else
+  export GPTOKEYB2="$ESUDO env LD_PRELOAD=$controlfolder/libinterpose.${DEVICE_ARCH}.so $controlfolder/gptokeyb2 $ESUDOKILL"
+  export GPTOKEYB="$ESUDO $controlfolder/gptokeyb $ESUDOKILL"
+fi

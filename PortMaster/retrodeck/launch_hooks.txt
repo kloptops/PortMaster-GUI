@@ -5,10 +5,10 @@
 # RetroDECK launcher hooks, sourced by utils/pm_launch.txt (see there for what each hook does).
 
 pm_hook_env() {
-  if [ -d "/app/bin/retrodeck.sh" ]; then
+  if [ -f "/app/bin/retrodeck.sh" ]; then
     source /app/libexec/global.sh # loading the RetroDECK framework that even give access to variables such as roms_folder
     directory="$roms_folder/portmaster"
-    cp "$controlfolder/retrodeck/control.txt" "$controlfolder"
+    cp -f "$controlfolder/retrodeck/control.txt" "$controlfolder/control.txt"
   fi
 
   source "$controlfolder/control.txt"

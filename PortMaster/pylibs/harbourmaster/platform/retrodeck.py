@@ -157,6 +157,17 @@ class PlatformRetroDECK(PlatformBase):
         PM_DIR = self.hm.tools_dir / "PortMaster"
         SC_DIR = self.hm.scripts_dir
 
+        # ZIP extraction does not always preserve the executable bit. Keep
+        # both active helpers and RetroDECK's protected AArch64 copies runnable.
+        for helper in (
+            PM_DIR / "gptokeyb",
+            PM_DIR / "gptokeyb2",
+            RD_DIR / "aarch64" / "gptokeyb",
+            RD_DIR / "aarch64" / "gptokeyb2",
+        ):
+            if helper.is_file():
+                helper.chmod(helper.stat().st_mode | 0o111)
+
         # ACTIVATE THE RetroDECK CONTROL
         logger.debug(f'Copy {RD_DIR / "control.txt"} -> {PM_DIR / "control.txt"}')
         shutil.copy(RD_DIR / "control.txt", PM_DIR / "control.txt")
