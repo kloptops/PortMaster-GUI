@@ -42,7 +42,7 @@ jobs:
           fi
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            binutils build-essential dpkg-dev liblzo2-2 liblzo2-dev \
+            binutils build-essential cmake dpkg-dev liblzo2-2 liblzo2-dev \
             liblz4-dev liblzma-dev libzstd-dev libgles1 zlib1g-dev
 
       - name: Build static unsquashfs and stage LZO library
@@ -69,6 +69,41 @@ jobs:
               grep -F 'Machine:' | grep -F 'AArch64'
             readelf -d retrodeck-tools/aarch64/libGLESv1_CM.so.1.2.0 |
               grep -F 'libGLdispatch.so.0'
+
+            # Weston-based PortMaster ports need libjpeg v8 ABI, not the KDE
+            # runtime's v6b libjpeg.so.62. Build the AArch64 shared library
+            # natively on this Ubuntu 24.04 ARM64 runner.
+            jpeg_version='3.2.1'
+            jpeg_archive="libjpeg-turbo-${jpeg_version}.tar.gz"
+            jpeg_source="$RUNNER_TEMP/libjpeg-turbo-${jpeg_version}"
+            jpeg_prefix="$RUNNER_TEMP/libjpeg-turbo-install"
+            curl -fL \
+              "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${jpeg_version}/${jpeg_archive}" \
+              -o "$RUNNER_TEMP/$jpeg_archive"
+            echo 'c27ad72a68da151177929aa969ae773a2da5ac2af9ce946079314fdac8cece7f  '"$RUNNER_TEMP/$jpeg_archive" | sha256sum -c -
+            tar -xzf "$RUNNER_TEMP/$jpeg_archive" -C "$RUNNER_TEMP"
+            cmake -S "$jpeg_source" -B "$RUNNER_TEMP/libjpeg-turbo-build" \
+              -DCMAKE_SYSTEM_NAME=Linux \
+              -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX="$jpeg_prefix" \
+              -DCMAKE_INSTALL_LIBDIR=lib \
+              -DWITH_JPEG8=ON \
+              -DWITH_TURBOJPEG=OFF \
+              -DWITH_TOOLS=OFF \
+              -DWITH_TESTS=OFF \
+              -DENABLE_SHARED=ON \
+              -DENABLE_STATIC=OFF
+            cmake --build "$RUNNER_TEMP/libjpeg-turbo-build" --parallel "$(nproc)"
+            cmake --install "$RUNNER_TEMP/libjpeg-turbo-build"
+            cp -L "$jpeg_prefix/lib/libjpeg.so.8" \
+              retrodeck-tools/aarch64/libjpeg.so.8
+            cp "$jpeg_source/LICENSE.md" \
+              retrodeck-tools/aarch64/libjpeg-turbo-LICENSE.md
+            readelf -h retrodeck-tools/aarch64/libjpeg.so.8 |
+              grep -F 'Machine:' | grep -F 'AArch64'
+            readelf -d retrodeck-tools/aarch64/libjpeg.so.8 |
+              grep -F 'SONAME' | grep -F 'libjpeg.so.8'
           fi
           chmod 755 "retrodeck-tools/${{ matrix.arch }}/unsquashfs"
           chmod 755 "retrodeck-tools/${{ matrix.arch }}/liblzo2.so.2"

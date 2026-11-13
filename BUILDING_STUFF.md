@@ -201,3 +201,12 @@ cd ..
 strip --strip-unneeded -o libtheoradec.so.1 $P/lib/libtheoradec.so.1.1.4
 readelf -d libtheoradec.so.1 | grep NEEDED    # only libc.so.6
 ```
+
+## Build RetroDECK's AArch64 libjpeg v8 ABI library
+
+The RetroDECK release workflow builds `libjpeg.so.8` from libjpeg-turbo 3.2.1
+on its Ubuntu 24.04 ARM64 runner with `WITH_JPEG8=ON`. It stages the library
+under `PortMaster/retrodeck/aarch64/`; `do_retrodeck_release.sh` places it in
+`PortMaster/retrodeck/libs.aarch64/` in `retrodeck.portmaster.zip`. This is a
+shared library because Weston loads it dynamically. The KDE Flatpak runtime's
+`libjpeg.so.62` has a different ABI and cannot substitute for it.

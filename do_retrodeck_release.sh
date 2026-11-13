@@ -87,6 +87,18 @@ if [[ -f "$GLES1_LIBRARY" ]]; then
     RD_PM/PortMaster/retrodeck/libs.aarch64/libGLESv1_CM.so
 fi
 
+# Weston-based AArch64 ports need libjpeg's v8 ABI. The Ubuntu 24.04 ARM64
+# release job builds and stages this library with the other RetroDECK tools.
+JPEG8_LIBRARY="$REPO_DIR/PortMaster/retrodeck/aarch64/libjpeg.so.8"
+if [[ -f "$JPEG8_LIBRARY" ]]; then
+  cp -p "$JPEG8_LIBRARY" RD_PM/PortMaster/retrodeck/libs.aarch64/
+  cp "$REPO_DIR/PortMaster/retrodeck/aarch64/libjpeg-turbo-LICENSE.md" \
+    RD_PM/PortMaster/licenses/LICENSE-libjpeg-turbo.md
+else
+  echo "Missing AArch64 libjpeg.so.8; build it in the Ubuntu 24.04 ARM64 release job first." >&2
+  exit 1
+fi
+
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_DIR/retrodeck.portmaster.zip"
 (cd RD_PM && zip -9qry "$DIST_DIR/retrodeck.portmaster.zip" PortMaster/)
