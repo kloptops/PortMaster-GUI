@@ -170,7 +170,7 @@ def test_release_updates_version_json(tmp_path):
 @pytest.mark.parametrize("script, launcher, stub", [
     ("do_muos_release.sh", "mnt/mmc/MUOS/PortMaster/PortMaster.sh", "muos"),
     ("do_trimui_release.sh", "Apps/PortMaster/launch.sh", "trimui"),
-    ("do_x86_64_release.sh", "PortMaster/PortMaster.sh", "retrodeck"),
+    ("do_retrodeck_release.sh", "PortMaster/PortMaster.sh", "retrodeck"),
     ])
 def test_cfw_bundles(test_build, tmp_path, script, launcher, stub):
     dist = tmp_path / "dist"

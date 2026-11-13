@@ -4,8 +4,8 @@
 #
 # retrodeck.portmaster.zip: PortMaster for RetroDECK.
 #
-#   ./do_x86_64_release.sh            from dist/PortMaster.zip (./do_release.sh first)
-#   ./do_x86_64_release.sh CHANNEL from the latest alpha/beta/stable PortMaster.zip on GitHub
+#   ./do_retrodeck_release.sh         from dist/PortMaster.zip (./do_release.sh first)
+#   ./do_retrodeck_release.sh CHANNEL from the latest alpha/beta/stable PortMaster.zip on GitHub
 #
 # Writes dist/retrodeck.portmaster.zip.
 
@@ -54,6 +54,12 @@ mkdir -p RD_PM/
   rm -f tasksetter
   touch tasksetter
 )
+
+# Non-stable RetroDECK bundles can be based on the latest stable PortMaster.zip.
+# Keep RetroDECK's ARM64-only shared libraries in sync with this checkout as they
+# are not part of an older stable base archive.
+mkdir -p RD_PM/PortMaster/libs
+cp -a "$REPO_DIR/PortMaster/libs.aarch64" RD_PM/PortMaster/libs/
 
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_DIR/retrodeck.portmaster.zip"

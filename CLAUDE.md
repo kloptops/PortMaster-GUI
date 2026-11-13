@@ -28,7 +28,7 @@ flake8 --select=E9,F63,F7,F82,F811 PortMaster/pugwash PortMaster/harbourmaster P
 ./do_release.sh test                       # a test build in dist/: version YYYY-MM-DD_XX69 (next free one today), checkout untouched
 ./do_release.sh testsuite                  # a test build + dist/pmtest.zip, the "PortMaster Test Suite" port for testers (see below)
 ./do_release.sh alpha|beta|stable [VER]    # a release in dist/ (+ version.json); stable (or MAKE_INSTALL=Y) also builds the makeself installers
-./do_muos_release.sh [stable]              # dist/muos.portmaster.zip (likewise do_trimui_release.sh, do_x86_64_release.sh)
+./do_muos_release.sh [stable]              # dist/muos.portmaster.zip (likewise do_trimui_release.sh, do_retrodeck_release.sh)
 python3 -I tools/i18n.py extract           # after changing translatable strings: rewrite locales/strings*.json
 python3 -I tools/i18n.py check             # language files: unused strings, lost {placeholders}
 ```

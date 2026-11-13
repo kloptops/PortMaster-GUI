@@ -173,7 +173,7 @@ jobs:
 
           ./do_muos_release.sh $BUNDLE_FROM
           ./do_trimui_release.sh $BUNDLE_FROM
-          ./do_x86_64_release.sh $BUNDLE_FROM
+          ./do_retrodeck_release.sh $BUNDLE_FROM
 
       - name: Create md5 hashes
         id: md5
