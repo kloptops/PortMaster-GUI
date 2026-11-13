@@ -43,7 +43,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             binutils build-essential dpkg-dev liblzo2-2 liblzo2-dev \
-            liblz4-dev liblzma-dev libzstd-dev zlib1g-dev
+            liblz4-dev liblzma-dev libzstd-dev libgles1 zlib1g-dev
 
       - name: Build static unsquashfs and stage LZO library
         run: |
@@ -59,9 +59,21 @@ jobs:
           lzo_library="$(ldconfig -p | awk '/liblzo2\.so\.2 / { print $NF; exit }')"
           test -n "$lzo_library"
           cp -L "$lzo_library" "retrodeck-tools/${{ matrix.arch }}/liblzo2.so.2"
+          if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
+            # Neverball's AArch64 port needs the GLVND GLES 1 dispatch library.
+            cp -L /usr/lib/aarch64-linux-gnu/libGLESv1_CM.so.1.2.0 \
+              retrodeck-tools/aarch64/libGLESv1_CM.so.1.2.0
+            cp /usr/share/doc/libgles1/copyright \
+              retrodeck-tools/aarch64/libgles1-copyright
+            readelf -h retrodeck-tools/aarch64/libGLESv1_CM.so.1.2.0 |
+              grep -F 'Machine:' | grep -F 'AArch64'
+            readelf -d retrodeck-tools/aarch64/libGLESv1_CM.so.1.2.0 |
+              grep -F 'libGLdispatch.so.0'
+          fi
           chmod 755 "retrodeck-tools/${{ matrix.arch }}/unsquashfs"
           chmod 755 "retrodeck-tools/${{ matrix.arch }}/liblzo2.so.2"
           for binary in "retrodeck-tools/${{ matrix.arch }}"/*; do
+            [[ "$binary" == *-copyright ]] && continue
             readelf -h "$binary" | grep -F "Machine:" | grep -F "${{ matrix.elf_machine }}"
           done
           if readelf -d "retrodeck-tools/${{ matrix.arch }}/unsquashfs" | grep -q NEEDED; then

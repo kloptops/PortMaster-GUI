@@ -67,6 +67,21 @@ mkdir -p RD_PM/PortMaster/retrodeck/libs.aarch64
 ln -sfn /lib/aarch64-linux-gnu/libbz2.so.1 \
   RD_PM/PortMaster/retrodeck/libs.aarch64/libbz2.so.1.0
 
+# Neverball needs the GLVND GLES 1 dispatch library. The Flatpak runtime
+# supplies GLdispatch and the Mesa driver; CI stages the ARM64 dispatch library.
+GLES1_LIBRARY="$REPO_DIR/PortMaster/retrodeck/aarch64/libGLESv1_CM.so.1.2.0"
+if [[ -f "$GLES1_LIBRARY" ]]; then
+  cp -p "$GLES1_LIBRARY" RD_PM/PortMaster/retrodeck/libs.aarch64/
+  if [[ -f "$REPO_DIR/PortMaster/retrodeck/aarch64/libgles1-copyright" ]]; then
+    cp "$REPO_DIR/PortMaster/retrodeck/aarch64/libgles1-copyright" \
+      RD_PM/PortMaster/licenses/LICENSE-libgles1.txt
+  fi
+  ln -sfn libGLESv1_CM.so.1.2.0 \
+    RD_PM/PortMaster/retrodeck/libs.aarch64/libGLESv1_CM.so.1
+  ln -sfn libGLESv1_CM.so.1 \
+    RD_PM/PortMaster/retrodeck/libs.aarch64/libGLESv1_CM.so
+fi
+
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_DIR/retrodeck.portmaster.zip"
 (cd RD_PM && zip -9qry "$DIST_DIR/retrodeck.portmaster.zip" PortMaster/)
