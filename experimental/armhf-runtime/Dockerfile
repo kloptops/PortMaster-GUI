@@ -37,6 +37,7 @@ ENV PKG_CONFIG_SYSROOT_DIR=/
 WORKDIR /src
 COPY runtime-probe.c /src/runtime-probe.c
 COPY sdl-egl-probe.c /src/sdl-egl-probe.c
+COPY sdl-glx-probe.c /src/sdl-glx-probe.c
 RUN curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL2-${SDL_VERSION}.tar.gz" \
       -o SDL2.tar.gz \
  && tar -xzf SDL2.tar.gz \
@@ -68,7 +69,14 @@ RUN curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SD
       -o /opt/armhf-runtime/armhf-probe \
  && arm-linux-gnueabihf-gcc -I/opt/armhf-runtime/include/SDL2 \
       /src/sdl-egl-probe.c -L/opt/armhf-runtime/lib -lSDL2 \
-      -o /opt/armhf-runtime/sdl-egl-probe
+      -o /opt/armhf-runtime/sdl-egl-probe \
+ && arm-linux-gnueabihf-gcc -I/opt/armhf-runtime/include/SDL2 \
+      /src/sdl-glx-probe.c -L/opt/armhf-runtime/lib -lSDL2 -lGL -lX11 \
+      -o /opt/armhf-runtime/sdl-glx-probe \
+ && arm-linux-gnueabihf-readelf -d /opt/armhf-runtime/sdl-glx-probe \
+      | grep -q 'Shared library: \[libSDL2-2.0.so.0\]' \
+ && arm-linux-gnueabihf-readelf -d /opt/armhf-runtime/sdl-glx-probe \
+      | grep -q 'Shared library: \[libGL.so.1\]'
 
 # Export only runtime libraries, not the cross-compiler or development files.
 # These packages provide SDL2's direct and transitive runtime dependencies.
@@ -88,6 +96,7 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
  && cp -a /opt/armhf-runtime/share/licenses/libsdl2-copyright /out/armhf-runtime/share/licenses/ \
  && cp -a /opt/armhf-runtime/armhf-probe /out/armhf-runtime/armhf-probe \
  && cp -a /opt/armhf-runtime/sdl-egl-probe /out/armhf-runtime/sdl-egl-probe \
+ && cp -a /opt/armhf-runtime/sdl-glx-probe /out/armhf-runtime/sdl-glx-probe \
  && dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
       | awk -F '\t' '$3 == "armhf" { print $1 "\t" $2 }' \
       > /out/armhf-runtime/armhf-packages.tsv \
@@ -98,7 +107,7 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
         install -D "$copyright" "/out/armhf-runtime/share/licenses/${package}-copyright"; \
       fi; \
     done < /out/armhf-runtime/armhf-packages.tsv \
- && max_glibc=$(for library in /out/armhf-runtime/lib/*.so.* /out/armhf-runtime/armhf-probe /out/armhf-runtime/sdl-egl-probe; do \
+ && max_glibc=$(for library in /out/armhf-runtime/lib/*.so.* /out/armhf-runtime/armhf-probe /out/armhf-runtime/sdl-egl-probe /out/armhf-runtime/sdl-glx-probe; do \
       [ -f "$library" ] || continue; \
       arm-linux-gnueabihf-readelf --version-info "$library" \
         | sed -n '/Version needs section/,/Version definition section/p' \
@@ -114,6 +123,7 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
       echo 'SDL video backends: X11, Wayland'; \
       echo 'SDL audio backend: PulseAudio'; \
       echo 'Includes a diagnostic SDL EGL/GLES window/context probe.'; \
+      echo 'Includes a diagnostic SDL desktop OpenGL/GLX window/context probe.'; \
       echo "Maximum GLIBC symbol requirement: ${max_glibc}"; \
       echo 'Not a supported PortMaster runtime; validate on the target device.'; \
     } > /out/armhf-runtime/EXPERIMENTAL.txt \

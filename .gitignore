@@ -195,3 +195,7 @@ pm_devices.cfg
 # Debug things
 cwtbe_flag
 debug_all_the_things_flag
+
+# Local ARMHF cross-build outputs and generated runtime bundles
+experimental/armhf-runtime/out*/
+.podman-storage/

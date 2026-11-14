@@ -35,6 +35,78 @@ to Ubuntu's package repositories and the pinned SDL2 release archive. To try a
 different SDL2 release, override `SDL_VERSION` explicitly and record the
 revision used with any test results.
 
+### Podman in a restricted development workspace
+
+Run Podman from this directory. In a normal host shell, the command above uses
+the configured rootless Podman image store and runtime state. In a restricted
+workspace where `/run/user/$UID/libpod` is read only, Podman may fail before
+building with an `alive.lck` or sticky-bit error. Changing only
+`XDG_RUNTIME_DIR` may not help when the configured `RunRoot` still points under
+`/run/user`.
+
+For that restricted case, Podman needs host filesystem access and its runtime
+state, image store, and temporary files can be redirected to `/tmp`:
+
+```sh
+podman \
+  --runroot=/tmp/podman-runroot-$UID \
+  --root=/tmp/podman-store-$UID \
+  --tmpdir=/tmp/podman-tmp-$UID \
+  build --file Dockerfile --target artifact \
+  --output type=local,dest=./out .
+```
+
+The isolated image store may pull the Ubuntu base image again. Reuse the same
+`/tmp` paths to retain that store between builds; exported files still appear
+in the requested local `out/` directory. If `/tmp` is a small tmpfs, keep the
+large image store on a disk-backed path and only put `--runroot` and `--tmpdir`
+under `/tmp`:
+
+```sh
+podman \
+  --runroot=/tmp/podman-runroot-$UID \
+  --root=/path/on/a/disk/podman-storage \
+  --tmpdir=/tmp/podman-tmp-$UID \
+  build --file Dockerfile.toolchain --tag retrodeck-armhf-toolchain:24.04 .
+```
+
+The `.podman-storage/` directory is ignored by Git.
+
+### Reusable ARMHF cross-compiler image
+
+Build a persistent image once from this directory:
+
+```sh
+podman build --file Dockerfile.toolchain --tag retrodeck-armhf-toolchain:24.04 .
+```
+
+Then mount any source checkout at `/src` and compile inside the image:
+
+```sh
+podman run --rm -it -v "$PWD:/src:Z" -w /src \
+  retrodeck-armhf-toolchain:24.04
+```
+
+The image provides `arm-linux-gnueabihf-gcc` and `g++`, CMake, Make, Ninja,
+X11/OpenGL development headers, and `armhf-pkg-config` configured to select
+ARMHF metadata. CMake uses `/opt/armhf-toolchain.cmake` by default. Install
+additional ARMHF development dependencies on demand with
+`armhf-apt-install libsdl2-dev:armhf libegl-dev:armhf`. For example:
+
+```sh
+armhf-apt-install libsdl2-dev:armhf
+arm-linux-gnueabihf-gcc probe.c $(armhf-pkg-config --cflags --libs sdl2) \
+  -o probe.armhf
+cmake -S . -B build-armhf
+cmake --build build-armhf --parallel 2
+```
+
+This is a reusable C/C++ cross-compiler base with common graphics headers, not
+a promise that every project's dependency is preinstalled. Install Ubuntu
+ARMHF development packages as needed with `armhf-apt-install PACKAGE:armhf`,
+or add them to a derived image. Keep build tools and generated artifacts out of
+the runtime bundle.
+
 For the current Nox-Decomp experiment, copy the generated `armhf-runtime/`
 directory to `PortMaster/retrodeck/armhf-runtime/`. Its launcher prepends the
 bundle's `lib/` directory after the Panfrost Mesa sidecar, so the new SDL2 and
@@ -95,6 +167,24 @@ and reports whether SDL can create an EGL context. Run `sdl-egl-probe` with the
 same `SDL_VIDEODRIVER`, `EGL_PLATFORM`, Mesa sidecar paths, and runtime
 libraries used by the Nox launch. This separates SDL/Mesa display setup from
 Nox's GL4ES integration.
+
+`sdl-glx-probe` first queries the X server's GLX extension and compatible visual,
+then matches Nox's desktop GL window setup: OpenGL 2.1, double buffering, no
+depth or stencil buffer, and a fullscreen desktop window. Run it with the same
+ARMHF SDL runtime and GL4ES library as Nox to distinguish a general SDL/GLX
+visual issue from Nox-specific startup behavior.
+
+`glx-visual-probe.c` is a smaller Xlib/GLX-only check. Compile it in the
+toolchain image with:
+
+```sh
+arm-linux-gnueabihf-gcc glx-visual-probe.c -lGL -lX11 \
+  -o out/armhf-runtime/glx-visual-probe
+```
+
+The direct Nox probe runs this before SDL. Its output reports whether the X
+server advertises GLX, the GLX protocol version, and whether a basic double
+buffered RGBA visual is available.
 
 For comparison on the AArch64 Flatpak SDL stack, build a native 64-bit probe:
 

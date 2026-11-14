@@ -1,0 +1,53 @@
+# Reusable Ubuntu 24.04 ARMHF cross-compilation environment.
+# This image is for compiling user-supplied source, not exporting runtime libs.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TARGET=arm-linux-gnueabihf
+
+RUN dpkg --add-architecture armhf \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates build-essential cmake curl git make ninja-build pkg-config \
+      binutils-arm-linux-gnueabihf gcc-arm-linux-gnueabihf \
+      g++-arm-linux-gnueabihf \
+      libx11-dev:armhf libgl-dev:armhf \
+ && rm -rf /var/lib/apt/lists/* \
+ && printf '%s\n' \
+      '#!/bin/sh' \
+      'export PKG_CONFIG_LIBDIR=/usr/lib/arm-linux-gnueabihf/pkgconfig:/usr/share/pkgconfig' \
+      'export PKG_CONFIG_SYSROOT_DIR=/' \
+      'unset PKG_CONFIG_PATH' \
+      'exec pkg-config "$@"' \
+      > /usr/local/bin/armhf-pkg-config \
+ && chmod 755 /usr/local/bin/armhf-pkg-config \
+ && printf '%s\n' \
+      '#!/bin/sh' \
+      'set -eu' \
+      'if [ "$#" -eq 0 ]; then echo "usage: armhf-apt-install PACKAGE[:armhf]..." >&2; exit 2; fi' \
+      'apt-get update' \
+      'apt-get install -y --no-install-recommends "$@"' \
+      'rm -rf /var/lib/apt/lists/*' \
+      > /usr/local/bin/armhf-apt-install \
+ && chmod 755 /usr/local/bin/armhf-apt-install \
+ && printf '%s\n' \
+      'set(CMAKE_SYSTEM_NAME Linux)' \
+      'set(CMAKE_SYSTEM_PROCESSOR armv7)' \
+      'set(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)' \
+      'set(CMAKE_CXX_COMPILER arm-linux-gnueabihf-g++)' \
+      'set(CMAKE_FIND_ROOT_PATH /usr/arm-linux-gnueabihf /usr/lib/arm-linux-gnueabihf /usr/include/arm-linux-gnueabihf)' \
+      'set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)' \
+      'set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)' \
+      'set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)' \
+      'set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)' \
+      > /opt/armhf-toolchain.cmake \
+ && dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
+      | awk -F '\t' '$3 == "armhf" { print $1 "\t" $2 }' \
+      > /opt/armhf-packages.tsv
+
+ENV PKG_CONFIG=/usr/local/bin/armhf-pkg-config
+ENV CC=arm-linux-gnueabihf-gcc
+ENV CXX=arm-linux-gnueabihf-g++
+ENV CMAKE_TOOLCHAIN_FILE=/opt/armhf-toolchain.cmake
+WORKDIR /src
+CMD ["bash"]
