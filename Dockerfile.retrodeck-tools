@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: MIT
+# Reproducible build for the architecture-specific tools in retrodeck.portmaster.zip.
+# Build natively on an x86_64 or AArch64 host, or use buildx/QEMU for the other target.
+FROM ubuntu:24.04 AS build
+
+ARG RETRODECK_ARCH
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /build
+
+RUN set -eux; \
+    case "$RETRODECK_ARCH" in \
+      x86_64) test "$(dpkg --print-architecture)" = amd64 ;; \
+      aarch64) test "$(dpkg --print-architecture)" = arm64 ;; \
+      *) echo "Unsupported RETRODECK_ARCH=$RETRODECK_ARCH" >&2; exit 2 ;; \
+    esac; \
+    sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      binutils build-essential cmake curl dpkg-dev git liblzo2-2 liblzo2-dev \
+      liblz4-dev liblzma-dev libzstd-dev zlib1g-dev; \
+    if [ "$RETRODECK_ARCH" = aarch64 ]; then \
+      apt-get install -y --no-install-recommends libgles1; \
+    fi; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    squashfs_tools_version='1:4.6.1-1build1'; \
+    apt-get update; \
+    apt-get source "squashfs-tools=$squashfs_tools_version"; \
+    make -C /build/squashfs-tools-4.6.1/squashfs-tools unsquashfs \
+      GZIP_SUPPORT=1 LZO_SUPPORT=1 LZ4_SUPPORT=1 XZ_SUPPORT=1 ZSTD_SUPPORT=1 \
+      LDFLAGS=-static; \
+    mkdir -p /out; \
+    cp /build/squashfs-tools-4.6.1/squashfs-tools/unsquashfs /out/unsquashfs; \
+    cp -L "$(ldconfig -p | awk '/liblzo2\.so\.2 / { print $NF; exit }')" /out/liblzo2.so.2; \
+    help_output="$(/out/unsquashfs -help 2>&1 || true)"; \
+    grep -qi lzo <<< "$help_output"; \
+    if readelf -d /out/unsquashfs | grep -q NEEDED || readelf -l /out/unsquashfs | grep -q INTERP; then \
+      echo 'unsquashfs must be static' >&2; exit 1; \
+    fi; \
+    chmod 755 /out/unsquashfs /out/liblzo2.so.2; \
+    rm -rf /var/lib/apt/lists/*
+
+RUN if [ "$RETRODECK_ARCH" = aarch64 ]; then \
+      set -eux; \
+      mkdir -p /out; \
+      cp -L /usr/lib/aarch64-linux-gnu/libGLESv1_CM.so.1.2.0 /out/libGLESv1_CM.so.1.2.0; \
+      cp /usr/share/doc/libgles1/copyright /out/libgles1-copyright; \
+      gl4es_commit='bcdacab3369347da3a0515b15ff050a329f9eb3b'; \
+      git clone https://github.com/sookyboo/4gles1.git /tmp/gl4es; \
+      git -C /tmp/gl4es checkout --detach "$gl4es_commit"; \
+      cmake -S /tmp/gl4es -B /tmp/gl4es-build \
+        -DCMAKE_BUILD_TYPE=Release -DNOX11=ON -DGLES1_WRAPPER=ON -DDEFAULT_ES=2; \
+      cmake --build /tmp/gl4es-build --parallel 2 --target GLESv1_CM GLES1_EGL; \
+      mkdir -p /out/gles1; \
+      cp -a /tmp/gl4es-build/lib/gles1/libGLESv1_CM.so* \
+        /tmp/gl4es-build/lib/gles1/libEGL.so* /out/gles1/; \
+      jpeg_version='3.2.1'; \
+      jpeg_archive="libjpeg-turbo-${jpeg_version}.tar.gz"; \
+      curl -fL "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${jpeg_version}/${jpeg_archive}" -o "/tmp/$jpeg_archive"; \
+      echo 'c27ad72a68da151177929aa969ae773a2da5ac2af9ce946079314fdac8cece7f  /tmp/'"$jpeg_archive" | sha256sum -c -; \
+      tar -xzf "/tmp/$jpeg_archive" -C /tmp; \
+      cmake -S "/tmp/libjpeg-turbo-${jpeg_version}" -B /tmp/jpeg-build \
+        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/tmp/jpeg-install \
+        -DCMAKE_INSTALL_LIBDIR=lib -DWITH_JPEG8=ON -DWITH_TURBOJPEG=OFF \
+        -DWITH_TOOLS=OFF -DWITH_TESTS=OFF -DENABLE_SHARED=ON -DENABLE_STATIC=OFF; \
+      cmake --build /tmp/jpeg-build --parallel 2; \
+      cmake --install /tmp/jpeg-build; \
+      cp -L /tmp/jpeg-install/lib/libjpeg.so.8 /out/libjpeg.so.8; \
+      cp "/tmp/libjpeg-turbo-${jpeg_version}/LICENSE.md" /out/libjpeg-turbo-LICENSE.md; \
+    fi
+
+RUN set -eux; \
+    expected_machine='Advanced Micro Devices X86-64'; \
+    if [ "$RETRODECK_ARCH" = aarch64 ]; then expected_machine='AArch64'; fi; \
+    for binary in /out/* /out/gles1/*; do \
+      [ -f "$binary" ] || continue; \
+      case "$binary" in *-copyright|*LICENSE*) continue ;; esac; \
+      readelf -h "$binary" | grep -F 'Machine:' | grep -F "$expected_machine"; \
+    done; \
+    if [ "$RETRODECK_ARCH" = aarch64 ]; then \
+      readelf -d /out/libGLESv1_CM.so.1.2.0 | grep -F 'libGLdispatch.so.0'; \
+      for library in /out/gles1/libGLESv1_CM.so.1 /out/gles1/libEGL.so.1; do \
+        readelf -h "$library" | grep -F 'Machine:' | grep -F AArch64; \
+        max_glibc="$(readelf --version-info "$library" | grep -Eo 'GLIBC_[0-9.]+' | sort -Vu | tail -n 1 || true)"; \
+        if [ -n "$max_glibc" ] && ! printf '%s\n' "$max_glibc" | grep -Eq '^GLIBC_2\.(0|[0-9]|[1-2][0-9]|3[0-9])$'; then \
+          echo "$library requires unsupported GLIBC $max_glibc" >&2; exit 1; \
+        fi; \
+      done; \
+      readelf -d /out/gles1/libGLESv1_CM.so.1 | grep -F 'SONAME' | grep -F 'libGLESv1_CM.so.1'; \
+      readelf -d /out/gles1/libEGL.so.1 | grep -F 'SONAME' | grep -F 'libEGL.so.1'; \
+    fi; \
+    cd /out; find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+
+FROM scratch AS artifact
+COPY --from=build /out/ /

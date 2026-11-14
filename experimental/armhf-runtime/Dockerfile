@@ -89,6 +89,15 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
           -exec cp -a -t /out/armhf-runtime/lib/ {} +; \
       fi; \
     done \
+ && for link in /out/armhf-runtime/lib/*.so.*; do \
+      [ -L "$link" ] || continue; \
+      target=$(basename "$(readlink "$link")"); \
+      for d in /lib/arm-linux-gnueabihf /usr/lib/arm-linux-gnueabihf /opt/armhf-runtime/lib; do \
+        [ -d "$d" ] || continue; \
+        find "$d" -maxdepth 1 -type f -name "$target" \
+          -exec cp -a -t /out/armhf-runtime/lib/ {} +; \
+      done; \
+    done \
  && pulse_common=$(find /usr/lib/arm-linux-gnueabihf -type f \
       -name 'libpulsecommon-*.so' -print -quit) \
  && test -n "$pulse_common" \
@@ -133,6 +142,9 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
         echo "Unexpected non-ARM library in ARMHF bundle: $library" >&2; exit 1; \
       }; \
     done \
+ && if find /out/armhf-runtime -type l ! -exec test -e {} \; -print | grep -q .; then \
+      echo 'ARMHF runtime contains dangling symlinks' >&2; exit 1; \
+    fi \
  && printf '%s\n' \
       '#!/bin/sh' \
       '# EXPERIMENTAL: invoke an ARMHF binary using this bundle loader.' \

@@ -100,8 +100,13 @@ before it starts the game. RetroDECK's sourced `mod_RetroDECK.txt` wraps that
 function, preserving the original helper for other ports and platforms. For
 Nox only, it activates when all of these are true: `PORT_32BIT=Y`, AArch64,
 `CFW_NAME=RetroDECK`, the RetroDECK Flatpak ID, `PM_PORTNAME=Nox-Decomp`, an
-active `DISPLAY`, the ARMHF Panfrost sidecar and GLX runtime are present, and
-the bundled ARMHF loader is executable.
+active `DISPLAY`, the host GPU is detected as Panfrost, the ARMHF Panfrost
+sidecar and GLX runtime are present, and the bundled ARMHF loader is
+executable. Host detection uses the PortMaster `GPU_DRIVER` marker when
+available, then checks `/sys/class/drm/card*/device/driver` and
+`/sys/class/drm/renderD*/device/driver` symlinks. Merely shipping
+`panfrost_dri.so` is not evidence that the machine has a Panfrost GPU: this
+sidecar is present in the test ZIP on every host.
 
 When the condition matches, the hook selects SDL X11 and Mesa's GLVND
 `libGL.so.1`, sets the Mesa sidecar's EGL/GLES/DRI/GBM paths, sets
@@ -119,6 +124,57 @@ and exit status to the port's existing `log.txt`. Set
 `NOX_ARMHF_DIAGNOSTICS=1` to additionally enable `LD_DEBUG=libs`. The result is
 confirmed for this RetroDECK Flatpak/Panfrost setup and remains experimental
 until tested on other devices and with other ARMHF ports.
+
+## Experimental RetroDECK ZIP packaging
+
+The regular `PortMaster.zip` remains generic. The release workflow builds a
+separate experimental ARMHF runtime and ARMHF Mesa sidecar, then adds them only
+to `retrodeck.portmaster.zip`. The RetroDECK archive contains:
+
+```text
+PortMaster/retrodeck/armhf-runtime/   # Ubuntu 24.04 ARMHF SDL/runtime libraries
+PortMaster/retrodeck/mesa.armhf/      # Ubuntu 24.04 ARMHF Mesa + Panfrost userspace
+PortMaster/retrodeck/libs.armhf/ld-linux-armhf.so.3
+PortMaster/retrodeck/ARMHF-EXPERIMENTAL.txt
+```
+
+The workflow's `build-retrodeck-tools` job and local build script both use the
+root `Dockerfile.retrodeck-tools`, which holds the existing Ubuntu 24.04 build
+for architecture-specific RetroDECK helpers. CI runs that container on native
+x86_64 and AArch64 runners and archives its outputs without losing symlinks.
+The `build-armhf-experiment` job builds the two ARMHF artifacts from
+`experimental/armhf-runtime/Dockerfile` and `Dockerfile.graphics`. These
+artifacts are explicitly test-only; do not add them to the generic PortMaster
+archive or treat their inclusion as general ARMHF support.
+
+The runtime image checks that all exported ARMHF symlinks resolve. This matters
+because Ubuntu's `libelf.so.1`, for example, can point to a versioned file
+whose name does not match the usual `*.so.*` collection pattern. The Docker
+build now includes symlink targets before packaging and fails if any are still
+missing.
+
+On a host with Podman and a working container runtime, run:
+
+```sh
+cd /path/to/PortMaster-GUI
+./build_retrodeck_test_zip.sh stable
+```
+
+Use `alpha` or `beta` to choose a different upstream PortMaster base. The
+script builds tools for the host's native architecture, builds both ARMHF
+bundles, and writes `dist/retrodeck.portmaster.zip`. It needs network access to
+Ubuntu package mirrors, the pinned source releases, and the upstream
+PortMaster release. An ARM64 machine can test the AArch64 RetroDECK bundle;
+CI remains responsible for also building and including the x86_64 helper
+artifacts from its native runner.
+
+The mod's Panfrost detection is intentionally separate from packaging. On a
+Panfrost RetroDECK Flatpak, a successful launch should log
+`RetroDECK ARMHF Nox Mesa GLX launch selected` plus either
+`Panfrost detected via: GPU_DRIVER` or the matched DRM sysfs path. On a
+non-Panfrost machine, the package may contain the sidecar, but the hook should
+log that Panfrost was not detected and preserve the original PortMaster helper
+behavior.
 
 The diagnostic launcher is `nox-direct-probe.sh` in the workspace root (run
 on-device as `Nox Direct Probe.sh`). Its successful mode is

@@ -31,6 +31,25 @@ if declare -f pm_platform_helper >/dev/null; then
         local rd_armhf_mesa="$controlfolder/retrodeck/mesa.armhf/lib"
         local rd_armhf_panfrost="$controlfolder/retrodeck/mesa.armhf/lib/dri/panfrost_dri.so"
         local rd_armhf_loader="$controlfolder/retrodeck/libs.armhf/ld-linux-armhf.so.3"
+        local rd_panfrost_source=""
+
+        # The Mesa DRI module ships in this RetroDECK bundle, so its presence
+        # alone cannot identify the host GPU. Prefer an explicit driver marker;
+        # otherwise inspect DRM driver symlinks exposed by the Flatpak.
+        local rd_gpu_driver="${GPU_DRIVER:-}"
+        if [[ "${rd_gpu_driver,,}" == "panfrost" ]]; then
+            rd_panfrost_source="GPU_DRIVER"
+        else
+            local rd_driver_link rd_driver_name
+            for rd_driver_link in /sys/class/drm/card*/device/driver /sys/class/drm/renderD*/device/driver; do
+                [[ -e "$rd_driver_link" ]] || continue
+                rd_driver_name="$(basename "$(readlink -f "$rd_driver_link" 2>/dev/null)")"
+                if [[ "$rd_driver_name" == "panfrost" ]]; then
+                    rd_panfrost_source="$rd_driver_link"
+                    break
+                fi
+            done
+        fi
 
         if [[ "${PORT_32BIT:-N}" == "Y" && \
               "${DEVICE_ARCH:-}" == "aarch64" && \
@@ -38,6 +57,7 @@ if declare -f pm_platform_helper >/dev/null; then
               "${FLATPAK_ID:-}" == "net.retrodeck.retrodeck" && \
               "${PM_PORTNAME:-}" == "Nox-Decomp" && \
               -n "${DISPLAY:-}" && \
+              -n "$rd_panfrost_source" && \
               -e "$rd_armhf_panfrost" && \
               -e "$rd_armhf_runtime/libGL.so.1" && \
               -x "$rd_armhf_loader" ]]; then
@@ -58,6 +78,7 @@ if declare -f pm_platform_helper >/dev/null; then
             echo "ARMHF loader: $rd_armhf_loader"
             echo "Mesa GL driver: $SDL_VIDEO_GL_DRIVER"
             echo "Mesa sidecar: $rd_armhf_mesa"
+            echo "Panfrost detected via: $rd_panfrost_source"
             echo "DISPLAY=$DISPLAY SDL_VIDEODRIVER=$SDL_VIDEODRIVER"
             echo "SDL_VIDEO_EGL_DRIVER=${SDL_VIDEO_EGL_DRIVER:-<unset>} EGL_PLATFORM=${EGL_PLATFORM:-<unset>} LIBGL_FB=${LIBGL_FB:-<unset>}"
             echo "LIBGL_NOES2COMPAT=$LIBGL_NOES2COMPAT LIBGL_GL=$LIBGL_GL LIBGL_ES=$LIBGL_ES"
@@ -76,6 +97,11 @@ if declare -f pm_platform_helper >/dev/null; then
             echo "Nox process exited with status $rd_nox_status"
             pm_finish
             exit "$rd_nox_status"
+        fi
+
+        if [[ "${PORT_32BIT:-N}" == "Y" && "${CFW_NAME:-}" == "RetroDECK" && \
+              "${PM_PORTNAME:-}" == "Nox-Decomp" ]]; then
+            echo "RetroDECK ARMHF Nox Mesa GLX not selected: GPU_DRIVER=${GPU_DRIVER:-<unset>} Panfrost source=${rd_panfrost_source:-not detected}"
         fi
 
         rd_pm_platform_helper_original "$@"
