@@ -141,6 +141,11 @@ echo "\$sdl_controllerconfig = $sdl_controllerconfig"
 export PATH="$RETRODECK_TOOL_BIN:$RETRODECK_ARCH_DIR:$controlfolder/retrodeck:$PATH"
 export LD_LIBRARY_PATH="$RETRODECK_ARCH_DIR:$controlfolder/retrodeck/libs.$RETRODECK_ARCH:$controlfolder/retrodeck:$LD_LIBRARY_PATH"
 
+# Opt-in GLES1 compatibility runner for individual ports.
+if [ -f "$controlfolder/retrodeck/gles1_compat.sh" ]; then
+  . "$controlfolder/retrodeck/gles1_compat.sh"
+fi
+
 get_controls() {
   ANALOGSTICKS="2"
   LOWRES="N"

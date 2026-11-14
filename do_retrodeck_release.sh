@@ -87,6 +87,20 @@ if [[ -f "$GLES1_LIBRARY" ]]; then
     RD_PM/PortMaster/retrodeck/libs.aarch64/libGLESv1_CM.so
 fi
 
+# GLES1 ports can opt into this private GL4ES GLES/EGL pair. Keep it nested
+# below libs.aarch64 so it is used only by the helper's child process.
+GLES1_COMPAT_DIR="$REPO_DIR/PortMaster/retrodeck/aarch64/gles1"
+for library in \
+  libGLESv1_CM.so.1.0.0 libGLESv1_CM.so.1 libGLESv1_CM.so \
+  libEGL.so.1.0.0 libEGL.so.1 libEGL.so; do
+  if [[ ! -e "$GLES1_COMPAT_DIR/$library" ]]; then
+    echo "Missing GLES1 compatibility library: $GLES1_COMPAT_DIR/$library" >&2
+    exit 1
+  fi
+done
+mkdir -p RD_PM/PortMaster/retrodeck/libs.aarch64/gles1
+cp -a "$GLES1_COMPAT_DIR/." RD_PM/PortMaster/retrodeck/libs.aarch64/gles1/
+
 # Weston-based AArch64 ports need libjpeg's v8 ABI. The Ubuntu 24.04 ARM64
 # release job builds and stages this library with the other RetroDECK tools.
 JPEG8_LIBRARY="$REPO_DIR/PortMaster/retrodeck/aarch64/libjpeg.so.8"

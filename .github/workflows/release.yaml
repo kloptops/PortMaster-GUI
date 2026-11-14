@@ -70,6 +70,41 @@ jobs:
             readelf -d retrodeck-tools/aarch64/libGLESv1_CM.so.1.2.0 |
               grep -F 'libGLdispatch.so.0'
 
+            # Build the GLES 1.1 compatibility implementation and EGL shim
+            # used by ports whose GLES 1 calls must run through GL4ES.
+            gl4es_commit='be7b28007ba1e629b01be1d614e803674f6f8b23'
+            git clone https://github.com/sookyboo/gl4es.git \
+              "$RUNNER_TEMP/gl4es"
+            git -C "$RUNNER_TEMP/gl4es" checkout --detach "$gl4es_commit"
+            cmake -S "$RUNNER_TEMP/gl4es" -B "$RUNNER_TEMP/gl4es-build" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DNOX11=ON \
+              -DGLES1_WRAPPER=ON \
+              -DDEFAULT_ES=2
+            cmake --build "$RUNNER_TEMP/gl4es-build" --parallel "$(nproc)" \
+              --target GLESv1_CM GLES1_EGL
+            gles1_dir="$RUNNER_TEMP/gl4es-build/lib/gles1"
+            install -d retrodeck-tools/aarch64/gles1
+            cp -a "$gles1_dir/libGLESv1_CM.so"* \
+              "$gles1_dir/libEGL.so"* retrodeck-tools/aarch64/gles1/
+            for library in \
+              retrodeck-tools/aarch64/gles1/libGLESv1_CM.so.1 \
+              retrodeck-tools/aarch64/gles1/libEGL.so.1; do
+              readelf -h "$library" | grep -F 'Machine:' | grep -F 'AArch64'
+              readelf -V "$library" | grep -E 'GLIBC_2\.(3[0-8]|[0-9])' >/dev/null || true
+              if readelf --version-info "$library" | grep -Eo 'GLIBC_[0-9.]+' |
+                  sort -Vu | tail -n 1 | grep -qvE 'GLIBC_2\.(0|[0-9]|[1-2][0-9]|3[0-8])$'; then
+                echo "$library requires glibc newer than Ubuntu 24.04 (2.39)" >&2
+                exit 1
+              fi
+            done
+            readelf -d retrodeck-tools/aarch64/gles1/libGLESv1_CM.so.1 |
+              grep -F 'SONAME' | grep -F 'libGLESv1_CM.so.1'
+            readelf -d retrodeck-tools/aarch64/gles1/libEGL.so.1 |
+              grep -F 'SONAME' | grep -F 'libEGL.so.1'
+            readelf -d retrodeck-tools/aarch64/gles1/libEGL.so.1 |
+              grep -F 'libGLESv1_CM.so.1'
+
             # Weston-based PortMaster ports need libjpeg v8 ABI, not the KDE
             # runtime's v6b libjpeg.so.62. Build the AArch64 shared library
             # natively on this Ubuntu 24.04 ARM64 runner.
@@ -125,7 +160,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: retrodeck-tools-${{ matrix.arch }}
-          path: retrodeck-tools/${{ matrix.arch }}/*
+          path: retrodeck-tools/${{ matrix.arch }}/
           if-no-files-found: error
 
   build:
@@ -153,7 +188,7 @@ jobs:
         run: |
           for arch in x86_64 aarch64; do
             mkdir -p "PortMaster/retrodeck/$arch"
-            cp "retrodeck-tools/retrodeck-tools-$arch/"* "PortMaster/retrodeck/$arch/"
+            cp -a "retrodeck-tools/retrodeck-tools-$arch/." "PortMaster/retrodeck/$arch/"
             chmod 755 "PortMaster/retrodeck/$arch/unsquashfs" "PortMaster/retrodeck/$arch/liblzo2.so.2"
           done
 
