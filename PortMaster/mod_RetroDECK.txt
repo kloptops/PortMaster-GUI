@@ -7,3 +7,11 @@
 # Use the reported display dimensions and start Godot ports fullscreen.
 GODOT2_OPTS="-r ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT} -f"
 GODOT_OPTS="--resolution ${DISPLAY_WIDTH}x${DISPLAY_HEIGHT} -f"
+
+# ARMHF ports set PORT_32BIT before sourcing this mod. Put RetroDECK's ARMHF
+# compatibility libraries first for those ports; keep normal AArch64 ports on
+# the standard library order.
+if [[ "${PORT_32BIT:-N}" == "Y" && "$DEVICE_ARCH" == "aarch64" ]]; then
+    export PM_LIBRARY_PATH="$controlfolder/libs.armhf:$controlfolder/libs.aarch64"
+    export LD_LIBRARY_PATH="$PM_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
