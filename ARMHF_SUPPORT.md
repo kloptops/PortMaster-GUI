@@ -94,21 +94,31 @@ and assets, set a 1920x1200 GL viewport, and remained in the game until the
 user closed it. The user confirmed rendering was fully functional. Nox then
 received `SDL_QUIT` and exited with status 0.
 
-The normal installed PortMaster launcher was then updated in
-`~/retrodeck/roms/portmaster/Nox-Decomp.sh` and tested successfully by the
-user. For an ARMHF Nox launch, it selects this Mesa GLX setup only when the
-existing RetroDECK Flatpak/Panfrost/X11 detection succeeds and
-`$controlfolder/retrodeck/armhf-runtime/lib/libGL.so.1` exists. In that case it
-sets `SDL_VIDEODRIVER=x11`, sets `SDL_VIDEO_GL_DRIVER` to that runtime's
-`libGL.so.1`, clears EGL-forcing variables and `LIBGL_FB`, and places the Mesa
-GLX runtime directory before the port's `gl4es.armhf` directory in
-`LD_LIBRARY_PATH`. Other platform configurations retain their existing
-graphics setup. The user confirmed that the game started and rendered through
-the regular PortMaster flow.
+The original Nox port launcher was restored and left unchanged. Its final
+`pm_platform_helper` call provides a hook after the port's normal GL setup and
+before it starts the game. RetroDECK's sourced `mod_RetroDECK.txt` wraps that
+function, preserving the original helper for other ports and platforms. For
+Nox only, it activates when all of these are true: `PORT_32BIT=Y`, AArch64,
+`CFW_NAME=RetroDECK`, the RetroDECK Flatpak ID, `PM_PORTNAME=Nox-Decomp`, an
+active `DISPLAY`, the ARMHF Panfrost sidecar and GLX runtime are present, and
+the bundled ARMHF loader is executable.
 
-This test confirms the configuration on the tested Chromebook/RetroDECK
-Flatpak setup. The installed launcher change has not yet been promoted into a
-maintained PortMaster source or tested on other devices.
+When the condition matches, the hook selects SDL X11 and Mesa's GLVND
+`libGL.so.1`, sets the Mesa sidecar's EGL/GLES/DRI/GBM paths, sets
+`LIBGL_NOES2COMPAT=1`, `LIBGL_GL=21`, and `LIBGL_ES=2`, clears EGL-forcing
+variables and `LIBGL_FB`, and orders libraries as port FFmpeg, port OpenAL,
+Mesa GLX runtime, Mesa sidecar, then port GL4ES. It launches `noxd.armhf`
+through `$controlfolder/retrodeck/libs.armhf/ld-linux-armhf.so.3`, applies the
+port's OpenAL preload, then runs `pm_finish` when Nox exits. Conditions that do
+not match call the original `pm_platform_helper` unchanged.
+
+This mod-hook approach was tested successfully through the regular PortMaster
+flow on the Chromebook; the user confirmed Nox started and rendering worked.
+The hook writes the selected driver, loader, graphics variables, library path,
+and exit status to the port's existing `log.txt`. Set
+`NOX_ARMHF_DIAGNOSTICS=1` to additionally enable `LD_DEBUG=libs`. The result is
+confirmed for this RetroDECK Flatpak/Panfrost setup and remains experimental
+until tested on other devices and with other ARMHF ports.
 
 The diagnostic launcher is `nox-direct-probe.sh` in the workspace root (run
 on-device as `Nox Direct Probe.sh`). Its successful mode is
@@ -218,7 +228,7 @@ test does not establish that ARMHF SDL can create an EGL context on the desktop.
 | ARMHF SDL EGL probe using current Mesa sidecar | Fails: `Could not get EGL display` |
 | Nox via GL4ES X11 GLX | Fails: `Couldn't find matching GLX visual` |
 | Nox direct probe via Mesa GLX runtime | **Confirmed working; user confirms fully functional rendering** |
-| Nox normal PortMaster launch via Mesa GLX runtime | **Confirmed working; user confirms game start and functional rendering** |
+| Nox normal PortMaster launch via RetroDECK mod hook and Mesa GLX runtime | **Confirmed working; user confirms game start and functional rendering** |
 | Earlier Nox configurations | SIGSYS/SIGSEGV observed; not reproduced in the successful Mesa GLX run |
 | Nox glibc requirement vs RetroDECK ARMHF libc | Compatible by symbol version (`2.29` required, `2.39` provided) |
 | Nox scanned shared-library dependency names | No obvious unresolved names in scanned directories |
@@ -227,10 +237,10 @@ test does not establish that ARMHF SDL can create an EGL context on the desktop.
 
 ## Recommended next diagnostic steps
 
-1. **Promote the proven launcher change carefully.** Port the conditional Mesa
-   GLX selection into the maintained Nox-Decomp launcher source and retain the
-   existing fallback for other devices and CFWs. Keep the runtime-library
-   existence check and test normal PortMaster launch after updating the port.
+1. **Keep the mod hook narrowly scoped.** The conditional Mesa GLX selection
+   lives in RetroDECK's `mod_RetroDECK.txt`; retain the Nox/Flatpak/Panfrost/
+   X11 checks and original-helper fallback. Test this hook after PortMaster
+   updates and on other supported ARMHF configurations before broadening it.
 2. **Do not mix Rocknix Gallium with the current ARMHF libc.** If testing the
    Rocknix stack, use a coherent isolated runtime with a libc that satisfies
    `GLIBC_2.43`, and treat it as a diagnostic experiment rather than a fix.

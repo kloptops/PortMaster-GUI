@@ -15,3 +15,69 @@ if [[ "${PORT_32BIT:-N}" == "Y" && "$DEVICE_ARCH" == "aarch64" ]]; then
     export PM_LIBRARY_PATH="$controlfolder/libs.armhf:$controlfolder/libs.aarch64"
     export LD_LIBRARY_PATH="$PM_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 fi
+
+# Nox-Decomp calls pm_platform_helper after setting its GL libraries and
+# library path. Wrap that existing hook so the tested Mesa GLX workaround can
+# be applied at the last safe point before Nox starts, without editing the
+# port's launcher. All other ports and platforms keep the original behavior.
+if declare -f pm_platform_helper >/dev/null; then
+    _rd_pm_platform_helper_definition="$(declare -f pm_platform_helper)"
+    _rd_pm_platform_helper_definition="${_rd_pm_platform_helper_definition/#pm_platform_helper/rd_pm_platform_helper_original}"
+    eval "$_rd_pm_platform_helper_definition"
+    unset _rd_pm_platform_helper_definition
+
+    pm_platform_helper() {
+        local rd_armhf_runtime="$controlfolder/retrodeck/armhf-runtime/lib"
+        local rd_armhf_mesa="$controlfolder/retrodeck/mesa.armhf/lib"
+        local rd_armhf_panfrost="$controlfolder/retrodeck/mesa.armhf/lib/dri/panfrost_dri.so"
+        local rd_armhf_loader="$controlfolder/retrodeck/libs.armhf/ld-linux-armhf.so.3"
+
+        if [[ "${PORT_32BIT:-N}" == "Y" && \
+              "${DEVICE_ARCH:-}" == "aarch64" && \
+              "${CFW_NAME:-}" == "RetroDECK" && \
+              "${FLATPAK_ID:-}" == "net.retrodeck.retrodeck" && \
+              "${PM_PORTNAME:-}" == "Nox-Decomp" && \
+              -n "${DISPLAY:-}" && \
+              -e "$rd_armhf_panfrost" && \
+              -e "$rd_armhf_runtime/libGL.so.1" && \
+              -x "$rd_armhf_loader" ]]; then
+            export SDL_VIDEODRIVER=x11
+            export SDL_VIDEO_GL_DRIVER="$rd_armhf_runtime/libGL.so.1"
+            unset SDL_VIDEO_EGL_DRIVER SDL_VIDEO_X11_FORCE_EGL EGL_PLATFORM LIBGL_FB
+            export LIBGL_EGL="$rd_armhf_mesa/libEGL.so.1"
+            export LIBGL_GLES="$rd_armhf_mesa/libGLESv2.so.2"
+            export LIBGL_DRIVERS_PATH="$rd_armhf_mesa/dri"
+            export GBM_BACKENDS_PATH="$rd_armhf_mesa/gbm"
+            export LIBGL_NOES2COMPAT=1
+            export LIBGL_GL=21
+            export LIBGL_ES=2
+            export LD_LIBRARY_PATH="$GAMEDIR/ffmpeg.armhf:$GAMEDIR/openal.armhf:$rd_armhf_runtime:$rd_armhf_mesa:$GAMEDIR/gl4es.armhf:$controlfolder/retrodeck/armhf-runtime/lib:$controlfolder/retrodeck/libs.armhf${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+            echo "RetroDECK ARMHF Nox Mesa GLX launch selected"
+            echo "Nox binary: $GAMEDIR/noxd.armhf"
+            echo "ARMHF loader: $rd_armhf_loader"
+            echo "Mesa GL driver: $SDL_VIDEO_GL_DRIVER"
+            echo "Mesa sidecar: $rd_armhf_mesa"
+            echo "DISPLAY=$DISPLAY SDL_VIDEODRIVER=$SDL_VIDEODRIVER"
+            echo "SDL_VIDEO_EGL_DRIVER=${SDL_VIDEO_EGL_DRIVER:-<unset>} EGL_PLATFORM=${EGL_PLATFORM:-<unset>} LIBGL_FB=${LIBGL_FB:-<unset>}"
+            echo "LIBGL_NOES2COMPAT=$LIBGL_NOES2COMPAT LIBGL_GL=$LIBGL_GL LIBGL_ES=$LIBGL_ES"
+            echo "LIBGL_EGL=$LIBGL_EGL LIBGL_GLES=$LIBGL_GLES"
+            echo "LIBGL_DRIVERS_PATH=$LIBGL_DRIVERS_PATH GBM_BACKENDS_PATH=$GBM_BACKENDS_PATH"
+            echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+            pm_message_close
+            export LD_PRELOAD="$GAMEDIR/openal.armhf/libopenal.so.1"
+            if [[ "${NOX_ARMHF_DIAGNOSTICS:-0}" == "1" ]]; then
+                LD_DEBUG=libs "$rd_armhf_loader" "$GAMEDIR/noxd.armhf"
+            else
+                "$rd_armhf_loader" "$GAMEDIR/noxd.armhf"
+            fi
+            local rd_nox_status=$?
+            unset LD_PRELOAD
+            echo "Nox process exited with status $rd_nox_status"
+            pm_finish
+            exit "$rd_nox_status"
+        fi
+
+        rd_pm_platform_helper_original "$@"
+    }
+fi
