@@ -67,6 +67,10 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
           -exec cp -a -t /out/armhf-runtime/lib/ {} +; \
       fi; \
     done \
+ && pulse_common=$(find /usr/lib/arm-linux-gnueabihf -type f \
+      -name 'libpulsecommon-*.so' -print -quit) \
+ && test -n "$pulse_common" \
+ && cp -a "$pulse_common" /out/armhf-runtime/lib/ \
  && cp -a /opt/armhf-runtime/share/licenses/libsdl2-copyright /out/armhf-runtime/share/licenses/ \
  && cp -a /opt/armhf-runtime/armhf-probe /out/armhf-runtime/armhf-probe \
  && dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \

@@ -51,13 +51,15 @@ one compatibility case. Also inspect SDL video, input, controller, and
 shutdown behavior across other ARMHF ports before proposing broader
 integration.
 
-The Dockerfile currently copies the ARMHF runtime shared objects installed by
-the Ubuntu 24.04 package dependencies into the bundle. This is intentionally
-conservative and may include more libraries than SDL2 itself requires. Before
-using the bundle beyond the experiment, reduce it to the verified dependency
-closure and record package versions, hashes, symbol requirements, and all
-upstream license notices. The exported bundle includes `armhf-packages.tsv`,
-`GLIBC_MAX_VERSION`, license texts, and `SHA256SUMS` to support that review.
+The Dockerfile copies the ARMHF runtime shared objects installed by the Ubuntu
+24.04 package dependencies into the bundle, including PulseAudio's nested
+`libpulsecommon` helper needed by ports that use the PulseAudio client library.
+This is intentionally conservative and may include more libraries than SDL2
+itself requires. Before using the bundle beyond the experiment, reduce it to
+the verified dependency closure and record package versions, hashes, symbol
+requirements, and all upstream license notices. The exported bundle includes
+`armhf-packages.tsv`, `GLIBC_MAX_VERSION`, license texts, and `SHA256SUMS` to
+support that review.
 
 Do not stage this output into the general PortMaster payload or ship it in a
 normal RetroDECK release until the experimental promotion criteria in
