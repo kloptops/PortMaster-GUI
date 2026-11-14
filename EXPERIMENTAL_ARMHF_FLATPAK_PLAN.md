@@ -82,8 +82,11 @@ with a dynamic ARMHF probe before treating it as the only failure.
    `build-retrodeck-tools`; do not change that job's current AArch64 outputs.
 3. **Build a reusable shared-library baseline.** Start with the loader and
    base ARMHF runtime required by the dynamic probe, then build a pinned SDL2
-   shared library with the platform backends needed by RetroDECK's tested
-   Weston/Crusty setup. Inventory more ARMHF ports to identify additional
+   shared library with the platform backends needed by RetroDECK's existing
+   desktop display. Nox does not bundle Weston; PortMaster's
+   `pm_platform_helper` may invoke the separately installed Westonpack
+   wrapper. The tested Panfrost path bypasses that helper and uses the
+   existing X11 display. Inventory more ARMHF ports to identify additional
    libraries that are genuinely shared. Keep libraries bundled by individual
    ports local to those ports unless runtime inspection shows they should be
    shared.

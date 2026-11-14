@@ -19,6 +19,39 @@ RetroDECK Panfrost detected, bypassing weston setup entirely!
 
 The user confirmed Crop and Claw then worked. This confirms the approach for this game and RetroDECK desktop session; ports that need Weston-specific setup still need compatibility testing.
 
+## Nox-Decomp follow-up
+
+Nox-Decomp does not bundle Weston, and this Nox launch path should not start
+Westonpack. Nox is an SDL application; on the RetroDECK desktop it should use
+the existing Wayland display directly. Keep Westonpack out of Nox-specific
+troubleshooting and fixes. The Westonpack proposal below applies to the
+separate Crop and Claw case only.
+
+The original ARMHF SDL2 lacked X11 and Wayland video backends. An experimental
+SDL2 2.32.10 runtime has now been cross-built with both backends, OpenGL,
+OpenGL ES, and PulseAudio support; its maximum GLIBC symbol requirement is
+2.38. It is installed in the isolated `retrodeck/armhf-runtime/lib`
+directory, ahead of `libs.armhf` in the Nox test launcher. Logs confirm that
+SDL initializes with both X11 and Wayland selected, but window creation fails:
+X11 reports `Couldn't find matching GLX visual`, while Wayland reports
+`Could not get EGL display`. The Wayland test also showed `LIBGL_FB=0`, which
+selects GL4ES's standard X11 path. The current experiment unsets that setting,
+directs SDL to the Mesa sidecar's EGL and GLES libraries, sets
+`LIBGL_NOES2COMPAT=1`, and explicitly selects `EGL_PLATFORM=wayland`. Nox is
+not yet confirmed working.
+
+Earlier logs also contain a GL4ES `eglInitialize: EGL_BAD_DISPLAY`
+extension-probe warning. The next launch will show whether explicitly selecting
+the Wayland EGL platform lets SDL create a usable window.
+
+To isolate SDL/Mesa from Nox and GL4ES, a standalone `Nox EGL Probe.sh`
+PortMaster entry now launches an ARMHF SDL2 probe that creates an OpenGL ES 2
+window and context using the same Wayland EGL/GLES libraries. Its output is
+written to `ports/nox-decomp/sdl-egl-probe.log`.
+
+This is a per-port launcher experiment. It does not change Westonpack or imply
+that every ARMHF port should use the same SDL/display configuration.
+
 ## Recommended Westonpack patch
 
 Integrate this as a small upstream `westonwrap.sh` change, rather than modifying the squashfs during every RetroDECK launch. Keep the regular Weston setup for all other cases.

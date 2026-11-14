@@ -13,11 +13,17 @@ RUN dpkg --add-architecture armhf \
       ca-certificates cmake curl gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
       make ninja-build pkg-config \
       libpulse-dev:armhf \
+      libwayland-dev:armhf wayland-protocols \
+      libxkbcommon-dev:armhf libdecor-0-dev:armhf \
+      libgl-dev:armhf libegl-dev:armhf libgles-dev:armhf \
       libx11-dev:armhf libxext-dev:armhf libxfixes-dev:armhf \
       libxcursor-dev:armhf libxi-dev:armhf libxinerama-dev:armhf \
-      libxrandr-dev:armhf libxss-dev:armhf \
+      libxrandr-dev:armhf libxrender-dev:armhf libxss-dev:armhf \
+      libxxf86vm-dev:armhf \
       libc6:armhf libgcc-s1:armhf libstdc++6:armhf \
-      libpulse0:armhf \
+      libpulse0:armhf libwayland-client0:armhf libwayland-cursor0:armhf \
+      libwayland-egl1:armhf libxkbcommon0:armhf libdecor-0-0:armhf \
+      libgl1:armhf libegl1:armhf libgles2:armhf \
       libx11-6:armhf libxext6:armhf libxfixes3:armhf \
       libxcursor1:armhf libxi6:armhf libxinerama1:armhf \
       libxrandr2:armhf libxss1:armhf \
@@ -30,6 +36,7 @@ ENV PKG_CONFIG_SYSROOT_DIR=/
 
 WORKDIR /src
 COPY runtime-probe.c /src/runtime-probe.c
+COPY sdl-egl-probe.c /src/sdl-egl-probe.c
 RUN curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL2-${SDL_VERSION}.tar.gz" \
       -o SDL2.tar.gz \
  && tar -xzf SDL2.tar.gz \
@@ -40,21 +47,28 @@ RUN curl -fsSL "https://github.com/libsdl-org/SDL/releases/download/release-${SD
       -DCMAKE_CXX_COMPILER=${TARGET}-g++ \
       -DCMAKE_FIND_ROOT_PATH=/usr/${TARGET} \
       -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-      -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-      -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+      -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH \
+      -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH \
       -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
+      -DCMAKE_LIBRARY_PATH=/usr/lib/arm-linux-gnueabihf \
+      -DCMAKE_INCLUDE_PATH=/usr/include \
       -DCMAKE_INSTALL_PREFIX=/opt/armhf-runtime \
-      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
       -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF \
       -DSDL_X11=ON -DSDL_ALSA=OFF -DSDL_PULSEAUDIO=ON \
-      -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF -DSDL_OPENGL=OFF \
+      -DSDL_WAYLAND=ON -DSDL_KMSDRM=OFF -DSDL_OPENGL=ON -DSDL_OPENGLES=ON \
  && cmake --build build-sdl --parallel 2 \
+ && grep -q 'src/video/x11/SDL_x11video.c' build-sdl/compile_commands.json \
+ && grep -q 'src/video/wayland/SDL_waylandvideo.c' build-sdl/compile_commands.json \
  && cmake --install build-sdl \
  && install -D /lib/ld-linux-armhf.so.3 /opt/armhf-runtime/lib/ld-linux-armhf.so.3 \
  && install -D "SDL2-${SDL_VERSION}/LICENSE.txt" /opt/armhf-runtime/share/licenses/libsdl2-copyright \
  && arm-linux-gnueabihf-gcc -I/opt/armhf-runtime/include/SDL2 \
       /src/runtime-probe.c -L/opt/armhf-runtime/lib -lSDL2 \
-      -o /opt/armhf-runtime/armhf-probe
+      -o /opt/armhf-runtime/armhf-probe \
+ && arm-linux-gnueabihf-gcc -I/opt/armhf-runtime/include/SDL2 \
+      /src/sdl-egl-probe.c -L/opt/armhf-runtime/lib -lSDL2 \
+      -o /opt/armhf-runtime/sdl-egl-probe
 
 # Export only runtime libraries, not the cross-compiler or development files.
 # These packages provide SDL2's direct and transitive runtime dependencies.
@@ -73,6 +87,7 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
  && cp -a "$pulse_common" /out/armhf-runtime/lib/ \
  && cp -a /opt/armhf-runtime/share/licenses/libsdl2-copyright /out/armhf-runtime/share/licenses/ \
  && cp -a /opt/armhf-runtime/armhf-probe /out/armhf-runtime/armhf-probe \
+ && cp -a /opt/armhf-runtime/sdl-egl-probe /out/armhf-runtime/sdl-egl-probe \
  && dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
       | awk -F '\t' '$3 == "armhf" { print $1 "\t" $2 }' \
       > /out/armhf-runtime/armhf-packages.tsv \
@@ -83,7 +98,7 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
         install -D "$copyright" "/out/armhf-runtime/share/licenses/${package}-copyright"; \
       fi; \
     done < /out/armhf-runtime/armhf-packages.tsv \
- && max_glibc=$(for library in /out/armhf-runtime/lib/*.so.* /out/armhf-runtime/armhf-probe; do \
+ && max_glibc=$(for library in /out/armhf-runtime/lib/*.so.* /out/armhf-runtime/armhf-probe /out/armhf-runtime/sdl-egl-probe; do \
       [ -f "$library" ] || continue; \
       arm-linux-gnueabihf-readelf --version-info "$library" \
         | sed -n '/Version needs section/,/Version definition section/p' \
@@ -96,8 +111,9 @@ RUN mkdir -p /out/armhf-runtime/lib /out/armhf-runtime/share/licenses \
       echo "SDL2 source release: ${SDL_VERSION}"; \
       echo 'Build base: Ubuntu 24.04'; \
       echo "Cross compiler: ${TARGET}"; \
-      echo 'SDL video backend: X11'; \
+      echo 'SDL video backends: X11, Wayland'; \
       echo 'SDL audio backend: PulseAudio'; \
+      echo 'Includes a diagnostic SDL EGL/GLES window/context probe.'; \
       echo "Maximum GLIBC symbol requirement: ${max_glibc}"; \
       echo 'Not a supported PortMaster runtime; validate on the target device.'; \
     } > /out/armhf-runtime/EXPERIMENTAL.txt \

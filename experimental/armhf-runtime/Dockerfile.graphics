@@ -1,0 +1,57 @@
+# EXPERIMENTAL: ARMHF Mesa EGL/GLES userspace for ARM64 Panfrost hosts.
+# This is a sidecar to the general ARMHF runtime: it includes Panfrost's DRI
+# module and Mesa's EGL/GLES/GBM/DRM libraries, not an AArch64 driver.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN dpkg --add-architecture armhf \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      binutils-arm-linux-gnueabihf \
+      libegl1:armhf libegl-mesa0:armhf libgles2:armhf \
+      libgbm1:armhf libdrm2:armhf libgl1-mesa-dri:armhf \
+ && mkdir -p /out/armhf-mesa/lib/dri /out/armhf-mesa/lib/gbm /out/armhf-mesa/share \
+ && find /usr/lib/arm-linux-gnueabihf \
+      -maxdepth 1 \( -type f -o -type l \) -name '*.so*' \
+      ! -name 'ld-linux-armhf.so.3' ! -name 'libc.so.6' \
+      ! -name 'libpthread.so.0' ! -name 'libdl.so.2' \
+      ! -name 'librt.so.1' ! -name 'libm.so.6' \
+      ! -name 'libgcc_s.so.1' \
+      -exec cp -a -t /out/armhf-mesa/lib/ {} + \
+ && test -f /usr/lib/arm-linux-gnueabihf/dri/panfrost_dri.so \
+ && cp -aL /usr/lib/arm-linux-gnueabihf/dri/panfrost_dri.so \
+      /out/armhf-mesa/lib/dri/panfrost_dri.so \
+ && if [ -d /usr/lib/arm-linux-gnueabihf/gbm ]; then \
+      find /usr/lib/arm-linux-gnueabihf/gbm -maxdepth 1 -type f -name '*.so' \
+        -exec cp -a -t /out/armhf-mesa/lib/gbm/ {} +; \
+    fi \
+ && test -f /out/armhf-mesa/lib/gbm/dri_gbm.so \
+ && dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
+      | awk -F '\t' '$3 == "armhf" { print $1 "\t" $2 }' \
+      > /out/armhf-mesa/packages.tsv \
+ && max_glibc=$(for library in /out/armhf-mesa/lib/*.so* /out/armhf-mesa/lib/dri/*.so /out/armhf-mesa/lib/gbm/*.so; do \
+      [ -f "$library" ] || continue; \
+      arm-linux-gnueabihf-readelf --version-info "$library" \
+        | grep -oE 'GLIBC_[0-9]+([.][0-9]+)+' || true; \
+    done | sed 's/GLIBC_//' | sort -Vu | tail -n 1) \
+ && printf '%s\n' "$max_glibc" > /out/armhf-mesa/GLIBC_MAX_VERSION \
+ && for library in /out/armhf-mesa/lib/*.so* /out/armhf-mesa/lib/dri/*.so /out/armhf-mesa/lib/gbm/*.so; do \
+      [ -f "$library" ] || continue; \
+      arm-linux-gnueabihf-readelf -h "$library" | grep -q 'Machine:.*ARM' || { \
+        echo "Unexpected non-ARM library: $library" >&2; exit 1; \
+      }; \
+    done \
+ && { \
+      echo 'EXPERIMENTAL ARMHF Mesa graphics runtime'; \
+      echo 'Ubuntu 24.04 armhf EGL/GLES/GBM/DRM and Panfrost DRI'; \
+      echo "Maximum GLIBC symbol requirement: ${max_glibc}"; \
+      echo 'Requires ARM64 host Panfrost kernel support and Flatpak device access.'; \
+      echo 'Do not use on non-Panfrost hosts or ship as a general PortMaster runtime.'; \
+    } > /out/armhf-mesa/EXPERIMENTAL.txt \
+ && cd /out/armhf-mesa \
+ && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS \
+ && rm -rf /var/lib/apt/lists/*
+
+FROM scratch AS artifact
+COPY --from=0 /out/ /
