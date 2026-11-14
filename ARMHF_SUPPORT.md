@@ -1,6 +1,7 @@
 # Experimental ARMHF support in RetroDECK
 
-**Status: experimental; Nox-Decomp does not currently run successfully.**
+**Status: experimental; Nox-Decomp has been confirmed running with functional
+rendering using the Mesa GLX runtime path documented below.**
 
 This document consolidates the investigation into running 32-bit ARM hard-float
 (ARMHF) PortMaster ports inside RetroDECK's AArch64 Flatpak. It records the
@@ -21,8 +22,8 @@ does not describe a supported general PortMaster feature.
   The observed Nox failures therefore are not explained by a too-new glibc
   requirement or an obvious missing shared-library dependency.
 - The ARMHF SDL EGL probe reaches SDL video initialization but has failed to
-  create a usable EGL display (`Could not get EGL display`). This remains the
-  strongest graphics issue to isolate.
+  create a usable EGL display (`Could not get EGL display`). That EGL test-path
+  failure does not prevent the working Mesa GLX configuration below.
 - The Chromebook has an AArch64 Panfrost driver, but no host ARMHF DRI driver
   was found. RetroDECK has a separately built ARMHF Mesa/Panfrost sidecar. Its
   presence alone does not prove that it can create a context against the
@@ -30,9 +31,11 @@ does not describe a supported general PortMaster feature.
 - A Rocknix H700 image contains a complete ARMHF graphics stack that is useful
   as a reference. Its Gallium library requires `GLIBC_2.43`, so it cannot be
   substituted into the current `GLIBC_2.39` RetroDECK ARMHF runtime.
-- Crop and Claw is confirmed working when Westonpack is bypassed for
-  RetroDECK + Panfrost + an existing desktop `DISPLAY`. That Westonpack fix is
-  separate from Nox's ARMHF EGL problem.
+- Nox-Decomp is confirmed working through the normal PortMaster launch path
+  with functional rendering using the Mesa GLX runtime documented below.
+  Crop and Claw is separately confirmed working when Westonpack is bypassed
+  for RetroDECK + Panfrost + an existing desktop `DISPLAY`. That Westonpack
+  fix is separate from Nox's ARMHF graphics configuration.
 
 ## Runtime and Nox findings
 
@@ -62,10 +65,54 @@ nox-decomp/openal.armhf/
 nox-decomp/gl4es.armhf/
 ```
 
-The current Nox diagnostic launcher explicitly invokes the ARMHF loader. An
+The Nox diagnostic launcher explicitly invokes the ARMHF loader. An
 absolute ELF interpreter path such as `/lib/ld-linux-armhf.so.3` cannot be
 assumed to resolve inside the Flatpak, which is why the explicit loader path
 and ARMHF library search path are important.
+
+### Confirmed working Nox graphics configuration
+
+Nox-Decomp is confirmed working both through a direct diagnostic launch and
+through its normal PortMaster launch on the tested RetroDECK Chromebook. Both
+use the ARMHF dynamic loader and Mesa GLX runtime libraries in RetroDECK's
+PortMaster data area. The essential graphics settings are:
+
+```sh
+ARMHF_RUNTIME="$HOME/.var/app/net.retrodeck.retrodeck/data/PortMaster/retrodeck/armhf-runtime/lib"
+export SDL_VIDEO_GL_DRIVER="$ARMHF_RUNTIME/libGL.so.1"
+export LD_LIBRARY_PATH="$ARMHF_RUNTIME:$LD_LIBRARY_PATH"
+```
+
+`SDL_VIDEO_GL_DRIVER` must point to the Mesa/GLVND `libGL.so.1`, rather than
+the port-local `gl4es.armhf/libGL.so.1`. Keep the port's FFmpeg and OpenAL
+directories on the ARMHF library search path, and invoke the game through the
+bundled `ld-linux-armhf.so.3`. The successful run used existing Mesa GLX
+runtime files; it did not depend on the proposed source-built Mesa artifacts.
+
+The direct `x11_glx_mesa_runtime` probe created an SDL window, loaded Nox maps
+and assets, set a 1920x1200 GL viewport, and remained in the game until the
+user closed it. The user confirmed rendering was fully functional. Nox then
+received `SDL_QUIT` and exited with status 0.
+
+The normal installed PortMaster launcher was then updated in
+`~/retrodeck/roms/portmaster/Nox-Decomp.sh` and tested successfully by the
+user. For an ARMHF Nox launch, it selects this Mesa GLX setup only when the
+existing RetroDECK Flatpak/Panfrost/X11 detection succeeds and
+`$controlfolder/retrodeck/armhf-runtime/lib/libGL.so.1` exists. In that case it
+sets `SDL_VIDEODRIVER=x11`, sets `SDL_VIDEO_GL_DRIVER` to that runtime's
+`libGL.so.1`, clears EGL-forcing variables and `LIBGL_FB`, and places the Mesa
+GLX runtime directory before the port's `gl4es.armhf` directory in
+`LD_LIBRARY_PATH`. Other platform configurations retain their existing
+graphics setup. The user confirmed that the game started and rendered through
+the regular PortMaster flow.
+
+This test confirms the configuration on the tested Chromebook/RetroDECK
+Flatpak setup. The installed launcher change has not yet been promoted into a
+maintained PortMaster source or tested on other devices.
+
+The diagnostic launcher is `nox-direct-probe.sh` in the workspace root (run
+on-device as `Nox Direct Probe.sh`). Its successful mode is
+`x11_glx_mesa_runtime`. The tested GL4ES GLX and EGL alternatives still fail.
 
 ### Nox binary and dependency inventory
 
@@ -159,8 +206,8 @@ Claw then worked. The SquashFS was not modified during that successful test.
 
 The recommended upstream Westonpack change and exact edit location are
 documented in [`WESTON_PANFROST.md`](WESTON_PANFROST.md). This workaround is
-not a fix for Nox's ARMHF EGL issue: Nox is an SDL app, and this test path does
-not establish that ARMHF SDL can create an EGL context on the desktop.
+separate from Nox's Mesa GLX solution. Nox is an SDL app, and this Westonpack
+test does not establish that ARMHF SDL can create an EGL context on the desktop.
 
 ## Current test state
 
@@ -169,7 +216,10 @@ not establish that ARMHF SDL can create an EGL context on the desktop.
 | Static ARM32 executable in multiarch Flatpak | Runs |
 | AArch64 SDL EGL probes on Chromebook | Context creation succeeds |
 | ARMHF SDL EGL probe using current Mesa sidecar | Fails: `Could not get EGL display` |
-| Nox via ARMHF loader | Not working; SIGSYS and SIGSEGV observed in different runs |
+| Nox via GL4ES X11 GLX | Fails: `Couldn't find matching GLX visual` |
+| Nox direct probe via Mesa GLX runtime | **Confirmed working; user confirms fully functional rendering** |
+| Nox normal PortMaster launch via Mesa GLX runtime | **Confirmed working; user confirms game start and functional rendering** |
+| Earlier Nox configurations | SIGSYS/SIGSEGV observed; not reproduced in the successful Mesa GLX run |
 | Nox glibc requirement vs RetroDECK ARMHF libc | Compatible by symbol version (`2.29` required, `2.39` provided) |
 | Nox scanned shared-library dependency names | No obvious unresolved names in scanned directories |
 | Crop and Claw with Westonpack Panfrost bypass | Confirmed working in tested desktop session |
@@ -177,21 +227,14 @@ not establish that ARMHF SDL can create an EGL context on the desktop.
 
 ## Recommended next diagnostic steps
 
-1. **Separate loader/syscall failure from graphics failure.** Run the minimal
-   dynamically linked ARMHF loader/SDL probe under the same Flatpak and
-   library-path setup. Preserve the exit signal and core dump. The static
-   probe is not a substitute for this test.
-2. **Resolve the EGL display failure before testing Nox rendering.** Capture
-   loader diagnostics and EGL/GBM/DRM initialization logs for the ARMHF probe.
-   Check which EGL platform SDL selected, whether the process can access the
-   host's DRM/render device, and which DRI driver and GBM backend were loaded.
-3. **Do not mix Rocknix Gallium with the current ARMHF libc.** If testing the
+1. **Promote the proven launcher change carefully.** Port the conditional Mesa
+   GLX selection into the maintained Nox-Decomp launcher source and retain the
+   existing fallback for other devices and CFWs. Keep the runtime-library
+   existence check and test normal PortMaster launch after updating the port.
+2. **Do not mix Rocknix Gallium with the current ARMHF libc.** If testing the
    Rocknix stack, use a coherent isolated runtime with a libc that satisfies
    `GLIBC_2.43`, and treat it as a diagnostic experiment rather than a fix.
-4. **Retest Nox only after the minimal dynamic probe works.** Nox also loads
-   GL4ES and its own FFmpeg/OpenAL libraries, so keep those separate from the
-   SDL/EGL probe and capture a core if Nox still crashes.
-5. **Keep the integration experimental.** Do not add the graphics sidecar or
+3. **Keep the integration experimental.** Do not add the graphics sidecar or
    an ARMHF runtime to the generic PortMaster payload until dynamic loader,
    EGL, controls, audio, and representative-port tests work through the normal
    RetroDECK launcher.
