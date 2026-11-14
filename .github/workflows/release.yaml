@@ -72,8 +72,8 @@ jobs:
 
             # Build the GLES 1.1 compatibility implementation and EGL shim
             # used by ports whose GLES 1 calls must run through GL4ES.
-            gl4es_commit='be7b28007ba1e629b01be1d614e803674f6f8b23'
-            git clone https://github.com/sookyboo/gl4es.git \
+            gl4es_commit='bcdacab3369347da3a0515b15ff050a329f9eb3b'
+            git clone https://github.com/sookyboo/4gles1.git \
               "$RUNNER_TEMP/gl4es"
             git -C "$RUNNER_TEMP/gl4es" checkout --detach "$gl4es_commit"
             cmake -S "$RUNNER_TEMP/gl4es" -B "$RUNNER_TEMP/gl4es-build" \
