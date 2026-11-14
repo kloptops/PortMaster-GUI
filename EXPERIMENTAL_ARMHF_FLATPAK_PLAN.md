@@ -1,14 +1,17 @@
-# EXPERIMENTAL: ARMHF libraries for RetroDECK's ARM64 Flatpak
+# EXPERIMENTAL: shared ARMHF runtime libraries for RetroDECK's ARM64 Flatpak
 
-**Status:** Proposal only. This is an experimental RetroDECK integration plan,
-not a supported PortMaster runtime or a change to the standard release payload.
+**Status:** Prototype built; target-device validation is still pending. This is
+an experimental RetroDECK integration plan, not a supported PortMaster runtime
+or a change to the standard release payload.
 
 ## Goal
 
-Investigate whether selected dynamically linked ARMHF PortMaster ports can run
-inside RetroDECK's ARM64 Flatpak. Use Nox-Decomp as the first compatibility
-target. Keep any libraries private to RetroDECK's PortMaster bundle until the
-approach has been tested on-device and reviewed for broader compatibility.
+Investigate whether dynamically linked ARMHF PortMaster ports can run inside
+RetroDECK's ARM64 Flatpak, using a reusable shared ARMHF runtime bundle. Nox-
+Decomp is an initial compatibility case, not the scope of the runtime. Keep any
+libraries private to RetroDECK's PortMaster bundle until representative ports
+have been tested on-device and the approach has been reviewed for broader
+compatibility.
 
 Flatpak's `--allow=multiarch` has already been verified with a static ARM32
 syscall probe. That test proves the host kernel and Flatpak permission allow a
@@ -34,9 +37,12 @@ Relevant existing files:
 - `PortMaster/libs.armhf/` — currently only a placeholder in this checkout;
   no ARMHF compatibility libraries are built here.
 
-The plan should add a separate ARMHF build artifact and stage it only into the
-RetroDECK-specific payload. It should not add the libraries to the general
-PortMaster runtime bundle or alter existing x86_64/AArch64 library builds.
+The prototype builds a separate ARMHF artifact through
+[`experimental/armhf-runtime/Dockerfile`](experimental/armhf-runtime/Dockerfile)
+and exports it locally. It is not staged into a release payload. Any future CI
+integration should keep the artifact private to RetroDECK; it should not add
+the libraries to the general PortMaster runtime bundle or alter existing
+x86_64/AArch64 library builds.
 
 ## Nox-Decomp dependency inventory
 
@@ -74,12 +80,13 @@ with a dynamic ARMHF probe before treating it as the only failure.
 2. **Build in a separate CI job.** Add an opt-in Ubuntu 24.04 x86_64 job using
    an ARMHF cross toolchain and a pinned ARMHF sysroot. Keep it separate from
    `build-retrodeck-tools`; do not change that job's current AArch64 outputs.
-3. **Build the minimum Nox dependency set.** Start with the loader and base
-   ARMHF runtime required by the dynamic probe, then build a pinned SDL2
-   shared library with only the platform backends needed by the tested
-   Weston/Crusty setup. Include SDL2's recursive ARMHF dependencies and
-   licenses. Nox already carries ARMHF OpenAL, GL4ES, and FFmpeg, so do not
-   duplicate those unless runtime inspection shows a missing dependency.
+3. **Build a reusable shared-library baseline.** Start with the loader and
+   base ARMHF runtime required by the dynamic probe, then build a pinned SDL2
+   shared library with the platform backends needed by RetroDECK's tested
+   Weston/Crusty setup. Inventory more ARMHF ports to identify additional
+   libraries that are genuinely shared. Keep libraries bundled by individual
+   ports local to those ports unless runtime inspection shows they should be
+   shared.
 4. **Validate every staged ELF.** Check ELF class/machine, interpreter,
    SONAME, all recursive `DT_NEEDED` entries, symbol versions, and license
    files. Record compiler, sysroot, source versions, hashes, and the maximum
@@ -90,11 +97,12 @@ with a dynamic ARMHF probe before treating it as the only failure.
    that integration. Avoid populating the general `PortMaster/libs.armhf`
    directory or changing generic PortMaster behavior until compatibility with
    other CFWs has been established.
-6. **Device test before promotion.** Confirm the dynamic probe, then launch
-   Nox-Decomp through its normal port script. Record loader resolution,
-   SDL video/audio initialization, controller behavior, and shutdown. If any
-   stage fails, retain the artifact as experimental and do not include it in
-   normal release artifacts.
+6. **Device test before promotion.** Confirm the dynamic probe, then test
+   Nox-Decomp and other representative ARMHF ports through their normal
+   PortMaster launch paths. Record loader resolution, SDL video/audio
+   initialization, controller behavior, and shutdown. If any stage fails,
+   retain the artifact as experimental and do not include it in normal
+   release artifacts.
 
 ## Promotion criteria
 
@@ -102,8 +110,8 @@ Keep the work marked **EXPERIMENTAL** until all of these are true:
 
 - ARMHF dynamic-loader resolution works inside the Flatpak without relying on
   host ARMHF libraries.
-- The dynamic probe and Nox-Decomp pass through the normal PortMaster launch
-  path on the target Chromebook.
+- The dynamic probe and representative ARMHF ports, including Nox-Decomp,
+  pass through the normal PortMaster launch path on the target Chromebook.
 - All packaged libraries have verified architecture, dependency closure,
   symbol-version requirements, provenance, hashes, and licenses.
 - Reset/update behavior preserves user PortMaster data and refreshes only the
