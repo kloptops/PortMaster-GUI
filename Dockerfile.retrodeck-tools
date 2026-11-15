@@ -53,8 +53,8 @@ RUN if [ "$RETRODECK_ARCH" = aarch64 ]; then \
         -DCMAKE_BUILD_TYPE=Release -DNOX11=ON -DGLES1_WRAPPER=ON -DDEFAULT_ES=2; \
       cmake --build /tmp/gl4es-build --parallel 2 --target GLESv1_CM GLES1_EGL; \
       mkdir -p /out/gles1; \
-      cp -a /tmp/gl4es-build/lib/gles1/libGLESv1_CM.so* \
-        /tmp/gl4es-build/lib/gles1/libEGL.so* /out/gles1/; \
+      cp -a /tmp/gl4es/lib/gles1/libGLESv1_CM.so* \
+        /tmp/gl4es/lib/gles1/libEGL.so* /out/gles1/; \
       jpeg_version='3.2.1'; \
       jpeg_archive="libjpeg-turbo-${jpeg_version}.tar.gz"; \
       curl -fL "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/${jpeg_version}/${jpeg_archive}" -o "/tmp/$jpeg_archive"; \
