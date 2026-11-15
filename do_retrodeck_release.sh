@@ -172,7 +172,7 @@ rm -f "$DIST_DIR/retrodeck.portmaster.zip"
 (cd RD_PM && zip -9qry "$DIST_DIR/retrodeck.portmaster.zip" PortMaster/)
 unzip -tq "$DIST_DIR/retrodeck.portmaster.zip" >/dev/null
 if [[ "${RD_INCLUDE_ARMHF_EXPERIMENTAL:-0}" == "1" ]]; then
-  unzip -Z1 "$DIST_DIR/retrodeck.portmaster.zip" | grep -q 'PortMaster/retrodeck/armhf-runtime/lib/ld-linux-armhf.so.3'
-  unzip -Z1 "$DIST_DIR/retrodeck.portmaster.zip" | grep -q 'PortMaster/retrodeck/mesa.armhf/lib/dri/panfrost_dri.so'
+  unzip -Z1 "$DIST_DIR/retrodeck.portmaster.zip" | grep -F 'PortMaster/retrodeck/armhf-runtime/lib/ld-linux-armhf.so.3' >/dev/null
+  unzip -Z1 "$DIST_DIR/retrodeck.portmaster.zip" | grep -F 'PortMaster/retrodeck/mesa.armhf/lib/dri/panfrost_dri.so' >/dev/null
 fi
 echo "Built $DIST_DIR/retrodeck.portmaster.zip"
