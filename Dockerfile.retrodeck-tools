@@ -16,7 +16,7 @@ RUN set -eux; \
     sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-      binutils build-essential cmake curl dpkg-dev git liblzo2-2 liblzo2-dev \
+      binutils build-essential ca-certificates cmake curl dpkg-dev git liblzo2-2 liblzo2-dev \
       liblz4-dev liblzma-dev libzstd-dev zlib1g-dev; \
     if [ "$RETRODECK_ARCH" = aarch64 ]; then \
       apt-get install -y --no-install-recommends libgles1; \
