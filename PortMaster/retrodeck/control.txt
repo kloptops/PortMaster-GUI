@@ -93,6 +93,14 @@ if [ ! -d "$RETRODECK_ARCH_DIR" ]; then
   exit 255
 fi
 
+# Unpacking PortMaster.zip doesn't always keep the executable bit, and the checks below need it before
+# harbourmaster ever runs (its RetroDECK platform hook fixes the same files only once pugwash is up).
+for tool in gptokeyb gptokeyb2 xdelta3 unsquashfs; do
+  if [ -f "$RETRODECK_ARCH_DIR/$tool" ] && [ ! -x "$RETRODECK_ARCH_DIR/$tool" ]; then
+    chmod +x "$RETRODECK_ARCH_DIR/$tool"
+  fi
+done
+
 # Use architecture-matched tools. PortMaster updates can replace the unsuffixed
 # root helpers, so RetroDECK keeps its AArch64 copies in its private tool dir.
 RETRODECK_TOOL_BIN="$controlfolder/retrodeck/.arch-tools/$RETRODECK_ARCH"
