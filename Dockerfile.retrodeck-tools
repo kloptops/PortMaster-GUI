@@ -34,7 +34,7 @@ RUN set -eux; \
     cp /build/squashfs-tools-4.6.1/squashfs-tools/unsquashfs /out/unsquashfs; \
     cp -L "$(ldconfig -p | awk '/liblzo2\.so\.2 / { print $NF; exit }')" /out/liblzo2.so.2; \
     help_output="$(/out/unsquashfs -help 2>&1 || true)"; \
-    grep -qi lzo <<< "$help_output"; \
+    printf '%s\n' "$help_output" | grep -qi lzo; \
     if readelf -d /out/unsquashfs | grep -q NEEDED || readelf -l /out/unsquashfs | grep -q INTERP; then \
       echo 'unsquashfs must be static' >&2; exit 1; \
     fi; \
