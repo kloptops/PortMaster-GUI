@@ -83,7 +83,8 @@ jobs:
               -DDEFAULT_ES=2
             cmake --build "$RUNNER_TEMP/gl4es-build" --parallel "$(nproc)" \
               --target GLESv1_CM GLES1_EGL
-            gles1_dir="$RUNNER_TEMP/gl4es-build/lib/gles1"
+            # gl4es writes its libraries into its source tree, not the build directory.
+            gles1_dir="$RUNNER_TEMP/gl4es/lib/gles1"
             install -d retrodeck-tools/aarch64/gles1
             cp -a "$gles1_dir/libGLESv1_CM.so"* \
               "$gles1_dir/libEGL.so"* retrodeck-tools/aarch64/gles1/
