@@ -2,6 +2,7 @@
 #include <SDL_opengl.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <GL/glx.h>
 #include <stdio.h>
 #include <stdlib.h>
 
